@@ -493,27 +493,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  // TODO: Implementar exportación de datos
-                  toast.info('Exportar datos', 'La funcionalidad de exportación estará disponible próximamente');
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-                title="Exportar datos (próximamente)"
-              >
-                <FileDown className="w-4 h-4" />
-                <span className="hidden sm:inline">Exportar</span>
-              </button>
-              <button
-                onClick={refreshAll}
-                disabled={isRefreshing}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition-colors"
-              >
-                <ArrowUpRight className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'Actualizando...' : 'Refrescar'}
-              </button>
-            </div>
+
           </div>
         </header>
 

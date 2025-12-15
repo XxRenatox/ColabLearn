@@ -1,9 +1,9 @@
 import React from "react";
 import { Check, Trash2, Eye, EyeOff } from "lucide-react";
 
-export const NotificationCard = ({ 
-  notification, 
-  getNotificationIcon, 
+export const NotificationCard = ({
+  notification,
+  getNotificationIcon,
   getNotificationColor,
   onMarkAsRead,
   onDelete,
@@ -14,11 +14,10 @@ export const NotificationCard = ({
 
   return (
     <div
-      className={`rounded-xl border p-4 transition-all ${
-        notification.is_read
+      className={`rounded-xl border p-4 transition-all ${notification.is_read
           ? 'bg-gray-50 border-gray-200 opacity-75'
           : 'bg-white border-blue-200 shadow-sm'
-      }`}
+        }`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start space-x-3 flex-1 min-w-0">
@@ -28,14 +27,12 @@ export const NotificationCard = ({
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <h4 className={`font-semibold mb-1 ${
-              notification.is_read ? 'text-gray-600' : 'text-gray-900'
-            }`}>
+            <h4 className={`font-semibold mb-1 ${notification.is_read ? 'text-gray-600' : 'text-gray-900'
+              }`}>
               {notification.title}
             </h4>
-            <p className={`text-sm mb-2 ${
-              notification.is_read ? 'text-gray-500' : 'text-gray-700'
-            }`}>
+            <p className={`text-sm mb-2 ${notification.is_read ? 'text-gray-500' : 'text-gray-700'
+              }`}>
               {notification.message}
             </p>
             {notification.created_at && (
@@ -73,18 +70,6 @@ export const NotificationCard = ({
               title="Marcar como leída"
             >
               <Check className="w-4 h-4" />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(notification.id);
-              }}
-              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-              title="Eliminar"
-            >
-              <Trash2 className="w-4 h-4" />
             </button>
           )}
         </div>

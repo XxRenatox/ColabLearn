@@ -121,7 +121,7 @@ CREATE TABLE groups (
     progress INTEGER DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
 
     -- Status
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'archived')),
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'archived', 'pending')),
     last_activity TIMESTAMP DEFAULT NOW(),
 
     -- Optional academic timeline
@@ -142,7 +142,7 @@ CREATE TABLE group_members (
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role group_member_role DEFAULT 'member',
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'banned')),
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'banned', 'pending')),
     joined_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(group_id, user_id)
 );

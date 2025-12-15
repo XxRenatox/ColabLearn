@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, Check, Trash2, Eye, EyeOff, Filter, Users, Trophy, Clock, AlertCircle } from 'lucide-react';
+import { Bell, Check, Eye, EyeOff, Filter, Users, Trophy, Clock, AlertCircle } from 'lucide-react';
 import { useApp } from '../../../../contexts/AppContext';
 import { notificationsAPI } from '../../../../services/api';
 import { NotificationCard } from '../../../ui/cards/common/NotificationCard';
@@ -47,23 +47,9 @@ const NotificationsSection = ({ notifications = [], loading = false }) => {
     }
   };
 
-  const deleteNotification = async (notificationId) => {
-    try {
-      await notificationsAPI.deleteNotification(notificationId);
-      loadNotifications();
-    } catch (error) {
-      // Error deleting notification
-    }
-  };
 
-  const clearAll = async () => {
-    try {
-      await notificationsAPI.clearAll();
-      loadNotifications();
-    } catch (error) {
-      // Error clearing all notifications
-    }
-  };
+
+
 
   const filteredNotifications = notifications.filter(notification => {
     if (filter === 'unread' && notification.is_read) return false;
@@ -92,7 +78,7 @@ const NotificationsSection = ({ notifications = [], loading = false }) => {
             {unreadCount > 0 ? `${unreadCount} notificaciones sin leer` : 'Todas las notificaciones leídas'}
           </p>
         </div>
-        
+
         <div className="flex gap-2">
           {unreadCount > 0 && (
             <button
@@ -103,14 +89,8 @@ const NotificationsSection = ({ notifications = [], loading = false }) => {
               Marcar todas como leídas
             </button>
           )}
-          
-          <button
-            onClick={clearAll}
-            className="flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Limpiar todas
-          </button>
+
+
         </div>
       </div>
 
@@ -121,7 +101,7 @@ const NotificationsSection = ({ notifications = [], loading = false }) => {
             <Filter className="w-4 h-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">Filtros:</span>
           </div>
-          
+
           <div className="flex flex-wrap gap-2">
             <select
               value={filter}
@@ -132,7 +112,7 @@ const NotificationsSection = ({ notifications = [], loading = false }) => {
               <option value="unread">Sin leer</option>
               <option value="read">Leídas</option>
             </select>
-            
+
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
@@ -166,7 +146,7 @@ const NotificationsSection = ({ notifications = [], loading = false }) => {
               getNotificationIcon={getNotificationIcon}
               getNotificationColor={getNotificationColor}
               onMarkAsRead={markAsRead}
-              onDelete={deleteNotification}
+
               onToggleRead={(id) => {
                 if (notification.is_read) {
                   // Si está leída, no hacer nada por ahora

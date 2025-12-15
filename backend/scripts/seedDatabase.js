@@ -31,8 +31,9 @@ const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABAS
   },
 });
 
-const SEED_EMAIL_DOMAIN = (process.env.SEED_EMAIL_DOMAIN || 'seed.colablearn.com').toLowerCase();
+const SEED_EMAIL_DOMAIN = (process.env.SEED_EMAIL_DOMAIN || 'colablearn.cl').toLowerCase();
 const SEED_USER_PASSWORD = process.env.SEED_USER_PASSWORD || 'Password123!';
+const SEED_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin123';
 
 const USERS_TO_CREATE = 30;
 const GROUPS_TO_CREATE = 20;
@@ -119,6 +120,62 @@ const bios = [
   'Me gusta el estudio estructurado pero también disfruto de la flexibilidad. Adaptable y abierto a nuevas formas de aprender.',
   'Estudiante dedicado que busca mejorar constantemente. Prefiero ambientes tranquilos para concentrarme mejor.',
   'Me encanta compartir conocimientos y ayudar a otros a entender conceptos difíciles. Paciente y colaborativo.',
+];
+
+// --- DATA REALISTA ---
+
+const realisticMessages = [
+  "¿Alguien entendió lo que explicó el profe hoy sobre integrales?",
+  "Les comparto mis apuntes de la clase de ayer, espero les sirvan.",
+  "¿Cuándo es la próxima entrega del proyecto?",
+  "Chicos, ¿nos juntamos el jueves a estudiar en la biblioteca?",
+  "Tengo dudas con el ejercicio 3 de la guía.",
+  "¡Gracias por el material! Me salvó la vida.",
+  "Ojo que el certamen se adelantó para el lunes.",
+  "¿Alguien tiene el libro en PDF?",
+  "No podré ir a la sesión de hoy, ¿me cuentan qué vieron?",
+  "¡Excelente sesión la de hoy! Aprendí mucho.",
+  "¿Hacemos un break de 10 minutos?",
+  "Voy llegando, espérenme porfa.",
+  "¿Vieron el correo que mandó coordinación?",
+  "Recuerden traer calculadora para mañana.",
+  "¿Quién se anima a repasar el finde?",
+];
+
+const realisticFileNames = {
+  general: ['Resumen_Certamen_1.pdf', 'Guia_Ejercicios_Resueltos.pdf', 'Apuntes_Clase_Magistral.pdf', 'Formulario_Oficial.pdf', 'Lectura_Obligatoria_Cap1-5.pdf'],
+  code: ['Proyecto_Final_v3.zip', 'Script_Analisis_Datos.py', 'Ejemplo_React_Hooks.zip', 'Base_Datos_Esquema.sql'],
+  media: ['Grabacion_Clase_Ayudantia.mp4', 'Esquema_Conceptos.png', 'Diagrama_Flujo_Procesos.jpg'],
+};
+
+const forumThreads = [
+  { title: "¿Mejor método para estudiar Anatomía?", content: "Hola a todos, estoy teniendo problemas para memorizar todas las partes. ¿Qué técnica usan ustedes? ¿Flashcards, esquemas?" },
+  { title: "Duda sobre fechas de inscripción", content: "¿Alguien sabe cuándo cierra el proceso de inscripción de asignaturas para el próximo semestre?" },
+  { title: "Busco grupo para estudiar Python", content: "Soy principiante en programación y busco compañeros para practicar ejercicios básicos de Python los fines de semana." },
+  { title: "Feedback sobre el curso de Economía", content: "Estoy pensando tomar el electivo de Microeconomía Avanzada. ¿Alguien lo ha tomado? ¿Qué tal la carga académica?" },
+  { title: "Problema con la biblioteca virtual", content: "No puedo acceder a los papers desde fuera de la U. ¿Alguien tiene el link del proxy?" },
+  { title: "Organización de tiempo en periodo de exámenes", content: "Estoy colapsado con 5 pruebas la próxima semana. ¿Algún consejo para organizar el tiempo y no morir en el intento?" },
+  { title: "Comparte tu música para estudiar", content: "Hagamos un hilo con playlists de Spotify para concentrarse. Yo empiezo con esta de Lo-Fi." },
+];
+
+const forumReplies = [
+  "Yo uso Anki para las flashcards y me funciona súper bien.",
+  "Te recomiendo hacer mapas conceptuales, ayuda mucho a visualizar las relaciones.",
+  "Creo que cierra el viernes a las 23:59, revisa el calendario académico.",
+  "¡Yo me sumo al grupo de Python! Manda DM para coordinar.",
+  "Es un ramo pesado pero el profe es muy bueno, vale la pena.",
+  "Intenta usar la VPN de la universidad, ahí debería funcionarte.",
+  "Prioriza lo más urgente y usa la técnica Pomodoro, a mí me salva siempre.",
+  "Buena idea, aquí dejo mi playlist de piano instrumental.",
+  "Gracias por el dato, lo voy a probar.",
+  "¡Ánimo! Ya queda poco para terminar el semestre.",
+];
+
+const sessionNotesSamples = [
+  { summary: "Revisamos los capítulos 1, 2 y 3. Quedó pendiente profundizar en derivadas parciales.", key_points: ["Regla de la cadena", "Optimización", "Lagrange"] },
+  { summary: "Hicimos 5 ejercicios de la guía práctica. El ejercicio 4 tenía una trampa en el enunciado.", key_points: ["Ejercicios prácticos", "Resolución de dudas", "Simulación d prueba"] },
+  { summary: "Lluvia de ideas para el proyecto semestral. Definimos el tema principal y roles.", key_points: ["Definición de tema", "Asignación de roles", "Cronograma"] },
+  { summary: "Repaso general antes del examen. Todos se sienten preparados.", key_points: ["Repaso general", "Tips para el examen", "Cierre de ciclo"] },
 ];
 
 const randomItem = (array) => array[Math.floor(Math.random() * array.length)];
@@ -224,6 +281,54 @@ async function createUsers() {
   const testUserHash = await bcrypt.hash(testUserPassword, 12);
 
   try {
+    // 1. Crear Usuario Admin Principal
+    const adminEmail = `admin@${SEED_EMAIL_DOMAIN}`;
+    const adminPassword = SEED_ADMIN_PASSWORD;
+    const adminHash = await bcrypt.hash(adminPassword, 12);
+
+    // Intentar eliminar si existe en Auth (para evitar duplicados al re-correr seed)
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingAdmin = existingUsers?.users?.find(u => u.email === adminEmail);
+    if (existingAdmin) {
+      await supabaseAdmin.auth.admin.deleteUser(existingAdmin.id);
+    }
+
+    const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.createUser({
+      email: adminEmail,
+      password: adminPassword,
+      email_confirm: true,
+      user_metadata: {
+        name: 'Administrador Principal',
+        avatar: null,
+        avatarStyle: 'adventurer',
+        university: 'Universidad de Chile',
+        career: 'Ingeniería Civil Informática',
+      },
+    });
+
+    if (!adminError && adminData?.user) {
+      usersPayload.push({
+        id: adminData.user.id,
+        email: adminEmail,
+        password_hash: adminHash,
+        name: 'Administrador Principal',
+        avatar: null,
+        university: 'Universidad de Chile',
+        career: 'Ingeniería Civil Informática',
+        semester: '10°',
+        is_active: true,
+        level: 50,
+        xp: 9999,
+        streak: 100,
+        study_hours: 500,
+        preferences: { bio: 'Administrador del sistema ColabLearn.' }
+      });
+      console.log(`  ✅ ADMIN creado: ${adminEmail} (pass: ${adminPassword})`);
+    } else {
+      console.error('Error creando Admin:', adminError);
+    }
+
+    // 2. Crear usuario de prueba (Cypress)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: testUserEmail,
       password: testUserPassword,
@@ -259,7 +364,7 @@ async function createUsers() {
       console.error('Error creando usuario de prueba:', authError);
     }
   } catch (error) {
-    console.error('Excepción creando usuario de prueba:', error);
+    console.error('Excepción creando usuarios iniciales:', error);
   }
 
   for (let i = 0; i < USERS_TO_CREATE; i++) {
@@ -704,9 +809,11 @@ async function createSessions(groups, groupMembersMap) {
         scheduled = new Date(now.getTime() + daysOffset * 86400000 + hoursOffset * 3600000);
       }
 
+      const notesSample = randomItem(sessionNotesSamples);
+
       sessionsPayload.push({
-        title: `${group.subject} - Sesión ${i + 1}`,
-        description: `Revisión de tópicos clave de ${group.subject}.`,
+        title: `${group.subject} - ${randomItem(['Sesión de Estudio', 'Repaso General', 'Resolución de Guía', 'Taller Práctico'])}`,
+        description: `Sesión para trabajar en ${group.subject}. Traer dudas y material de estudio.`,
         group_id: group.id,
         organizer_id: group.creator_id,
         type: randomItem(['study', 'review', 'project', 'discussion']),
@@ -714,21 +821,24 @@ async function createSessions(groups, groupMembersMap) {
         duration: randomInt(60, 150),
         timezone: randomItem(timezones),
         location_type: Math.random() > 0.4 ? 'virtual' : 'physical',
-        location_details: Math.random() > 0.5 ? 'Google Meet' : 'Sala 301, Campus San Joaquín',
+        location_details: Math.random() > 0.5 ? 'Google Meet' : 'Sala de Estudio, Biblioteca',
         location_room: 'Sala ' + randomInt(100, 405),
         platform: 'Teams/Meet',
         max_attendees: randomInt(10, 35),
         status: shouldBeSoon ? 'scheduled' : randomItem(['scheduled', 'in_progress', 'completed']),
         agenda: [
-          { title: 'Introducción', duration: 15 },
-          { title: 'Tema principal', duration: 45 },
-          { title: 'Discusión', duration: 20 },
+          { title: 'Bienvenida', duration: 10 },
+          { title: 'Desarrollo', duration: 60 },
+          { title: 'Conclusiones', duration: 20 },
         ],
         resources: [
-          { type: 'link', value: 'https://colablearn.cl/recursos/' + slugify(group.subject) },
+          { type: 'link', value: 'https://colablearn.cl/recursos/' + slugify(group.subject), title: 'Guía de Estudio' },
         ],
         session_notes: {
-          summary: 'Sesión enfocada en resolver dudas recurrentes.',
+          summary: notesSample.summary,
+          key_points: notesSample.key_points,
+          next_steps: "Repasar lo visto hoy para el control.",
+          shared_resources: ["https://drive.google.com/...", "https://youtube.com/..."]
         },
       });
     }
@@ -903,16 +1013,17 @@ async function createForums(users, groups) {
 
   forums.forEach((forum) => {
     for (let i = 0; i < POSTS_PER_FORUM; i++) {
+      const thread = randomItem(forumThreads);
       const author = randomItem(users);
       postsPayload.push({
         forum_id: forum.id,
         author_id: author.id,
-        title: `Tema ${i + 1}: ${randomItem(subjects)}`,
-        content: `Contenido del tema ${i + 1} relacionado a ${forum.title}.`,
-        is_pinned: i === 0 && Math.random() > 0.7,
-        is_locked: Math.random() > 0.9,
-        views: randomInt(10, 200),
-        likes: randomInt(0, 40),
+        title: i === 0 ? thread.title : `${randomItem(['Duda sobre', 'Consulta de', 'Idea para'])} ${randomItem(subjects)}`,
+        content: i === 0 ? thread.content : `Hola, tengo una pregunta sobre el tema ${i + 1}. ¿Alguien me ayuda?`,
+        is_pinned: i === 0 && Math.random() > 0.8,
+        is_locked: Math.random() > 0.95,
+        views: randomInt(10, 500),
+        likes: randomInt(0, 50),
         replies_count: REPLIES_PER_POST,
       });
     }
@@ -930,8 +1041,8 @@ async function createForums(users, groups) {
       repliesPayload.push({
         post_id: post.id,
         author_id: author.id,
-        content: `Respuesta ${i + 1} al post ${post.title}.`,
-        likes: randomInt(0, 20),
+        content: randomItem(forumReplies),
+        likes: randomInt(0, 15),
       });
 
       if (Math.random() > 0.6) {
@@ -986,9 +1097,9 @@ async function createMessages(groups, groupMembersMap) {
       messagesPayload.push({
         group_id: group.id,
         sender_id: senderId,
-        content: `Mensaje ${i + 1} en ${group.name}: discusión de ${randomItem(subjects)}.`,
+        content: Math.random() > 0.3 ? randomItem(realisticMessages) : `Mensaje ${i + 1} en ${group.name}: discusión sobre ${randomItem(subjects)}.`,
         status: randomItem(['sent', 'delivered', 'read']),
-        is_edited: Math.random() > 0.85,
+        is_edited: Math.random() > 0.95,
         created_at: new Date(Date.now() - randomInt(0, 10) * 3600000).toISOString(),
       });
     }
@@ -1051,26 +1162,46 @@ async function createUserAchievements(users, achievements) {
   console.log(`Relación usuario-logro creada: ${userAchievementsPayload.length}`);
 }
 
-async function createFiles(users, groups) {
+async function createFiles(users, groups, sessions) {
   console.log('\n📂 Creando recursos y descargas...');
   const filesPayload = [];
 
   for (let i = 0; i < FILES_TO_CREATE; i++) {
     const uploader = randomItem(users);
     const group = randomItem(groups);
+    const category = randomItem(Object.keys(realisticFileNames));
+    const realName = randomItem(realisticFileNames[category]);
+    const fileExt = realName.split('.').pop();
+
+    // Simular diferentes tipos de recursos basados en la extensión
+    let resType = 'document';
+    if (['png', 'jpg', 'jpeg'].includes(fileExt)) resType = 'material_theory'; // Imágenes como material teórico
+    if (['mp4', 'mov'].includes(fileExt)) resType = 'video';
+    if (['zip', 'rar', 'py', 'sql'].includes(fileExt)) resType = 'tool';
+
+    // Intentar asociar a una sesión del mismo grupo
+    let relatedSessionId = null;
+    if (Math.random() > 0.8 && sessions) {
+      const groupSessions = sessions.filter(s => s.group_id === group.id);
+      if (groupSessions.length > 0) {
+        relatedSessionId = randomItem(groupSessions).id;
+      }
+    }
+
     filesPayload.push({
-      name: `Recurso ${i + 1} - ${group.subject}`,
-      original_name: `recurso_${slugify(group.subject)}_${i + 1}.pdf`,
-      mime_type: 'application/pdf',
+      name: realName.replace(/_/g, ' ').replace('.' + fileExt, ''),
+      original_name: realName,
+      mime_type: fileExt === 'pdf' ? 'application/pdf' : 'application/octet-stream',
       size: randomInt(50000, 5000000),
-      storage_path: `public/resources/${group.id}/${slugify(group.subject)}_${i + 1}.pdf`,
+      storage_path: `public/resources/${group.id}/${slugify(realName)}`,
       uploaded_by: uploader.id,
       group_id: group.id,
-      session_id: null,
+      session_id: relatedSessionId,
       is_public: Math.random() > 0.5,
       is_deleted: false,
-      resource_type: randomItem(resourceTypes),
-      download_count: randomInt(0, 120),
+      resource_type: resType,
+      download_count: randomInt(5, 500),
+      created_at: new Date(Date.now() - randomInt(0, 60) * 86400000).toISOString(),
     });
   }
 
@@ -1113,7 +1244,7 @@ async function main() {
     await createForums(users, groups);
     await createMessages(groups, groupMembersMap);
     await createUserAchievements(users, achievements);
-    await createFiles(users, groups);
+    await createFiles(users, groups, sessions);
 
     console.log('\nSeed completo finalizado correctamente.');
     process.exit(0);
