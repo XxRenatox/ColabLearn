@@ -25,15 +25,15 @@ export const useSessionNotifications = (sessions = []) => {
 
         try {
           const sessionStart = new Date(session.scheduled_date);
-          
+
           // Verificar si la sesión comienza en aproximadamente 1 hora (±5 minutos de margen)
           const timeDiff = sessionStart.getTime() - now.getTime();
           const hoursUntilStart = timeDiff / (1000 * 60 * 60);
-          
+
           // Notificar si falta entre 55 minutos y 65 minutos (ventana de 10 minutos)
           if (hoursUntilStart >= 0.916 && hoursUntilStart <= 1.083) {
             const minutesUntilStart = Math.round(timeDiff / (1000 * 60));
-            
+
             // Marcar como notificada
             notifiedSessionsRef.current.add(session.id);
 
@@ -62,12 +62,12 @@ export const useSessionNotifications = (sessions = []) => {
                   requireInteraction: false,
                 });
               } catch (err) {
-                console.warn('Error mostrando notificación del navegador:', err);
+
               }
             }
           }
         } catch (err) {
-          console.warn('Error verificando sesión para notificación:', err);
+
         }
       });
     };
@@ -85,7 +85,7 @@ export const useSessionNotifications = (sessions = []) => {
   useEffect(() => {
     const now = new Date();
     const notifiedIds = Array.from(notifiedSessionsRef.current);
-    
+
     notifiedIds.forEach((sessionId) => {
       const session = sessions.find((s) => s.id === sessionId);
       if (!session) {
@@ -107,7 +107,7 @@ export const useSessionNotifications = (sessions = []) => {
  */
 export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
-    console.warn('Este navegador no soporta notificaciones');
+
     return false;
   }
 
@@ -120,7 +120,7 @@ export const requestNotificationPermission = async () => {
       const permission = await Notification.requestPermission();
       return permission === 'granted';
     } catch (err) {
-      console.warn('Error solicitando permiso de notificaciones:', err);
+
       return false;
     }
   }

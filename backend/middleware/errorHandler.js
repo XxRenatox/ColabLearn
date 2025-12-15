@@ -52,15 +52,7 @@ const errorHandler = (err, req, res, next) => {
   error.errors = err.errors || [];
   error.message = err.message;
 
-  // Log del error (siempre para debugging)
-  console.error('[ERROR HANDLER]', {
-    message: error.message,
-    statusCode: error.statusCode || err.statusCode,
-    name: err.name,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    url: req?.originalUrl,
-    method: req?.method
-  });
+  // Log del error deshabilitado
 
   // Error operacional personalizado
   if (err.isOperational) {

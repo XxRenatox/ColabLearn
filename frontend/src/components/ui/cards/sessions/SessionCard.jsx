@@ -83,7 +83,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
         // Se puede unir si ya pasó la ventana de unión (90 min antes) y la sesión no ha terminado
         const sessionEndTime = new Date(scheduledDate);
         sessionEndTime.setMinutes(sessionEndTime.getMinutes() + (session.duration || 120) + 60);
-        
+
         setCanJoin(now >= joinWindowStart && now <= sessionEndTime && session.status === 'scheduled');
       };
 
@@ -132,7 +132,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
     try {
       const startDate = new Date(session.scheduled_date);
       const endDate = new Date(startDate.getTime() + (session.duration || 60) * 60000);
-      
+
       const formatDate = (date) => {
         return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
       };
@@ -140,7 +140,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
       const title = encodeURIComponent(session.title);
       const description = encodeURIComponent(session.description || '');
       const location = encodeURIComponent(
-        session.location_type === 'virtual' 
+        session.location_type === 'virtual'
           ? (session.platform || 'Virtual')
           : (session.location_details || '')
       );
@@ -149,7 +149,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
 
       // Google Calendar
       const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${description}&location=${location}`;
-      
+
       // Intentar abrir Google Calendar
       window.open(googleUrl, '_blank');
       addToast('Calendario abierto. Puedes agregar la sesión a tu calendario.', 'success');
@@ -191,9 +191,8 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
   };
 
   return (
-    <div className={`bg-white rounded-xl border p-4 sm:p-6 hover:shadow-lg transition-all duration-200 ${
-      isNextSession ? 'border-blue-400 border-2 shadow-md bg-gradient-to-br from-blue-50/50 to-white' : 'border-gray-200'
-    }`}>
+    <div className={`bg-white rounded-xl border p-4 sm:p-6 hover:shadow-lg transition-all duration-200 ${isNextSession ? 'border-blue-400 border-2 shadow-md bg-gradient-to-br from-blue-50/50 to-white' : 'border-gray-200'
+      }`}>
       {isNextSession && (
         <div className="flex items-center space-x-1 mb-2">
           <Sparkles className="w-4 h-4 text-blue-600" />
@@ -231,7 +230,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
         <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2 ml-2">
           {session.organizer_id === user?.id && (
             <>
-              <button 
+              <button
                 onClick={() => {
                   if (onEditSession) {
                     onEditSession(session);
@@ -244,7 +243,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
               >
                 <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
-              <button 
+              <button
                 onClick={() => {
                   if (onDeleteSession) {
                     setShowDeleteConfirm(true);
@@ -342,7 +341,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
               </div>
               <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
                 {session.organizer_id === user?.id && (
-                  <button 
+                  <button
                     onClick={() => {
                       if (onEditSession) {
                         onEditSession(session);
@@ -355,19 +354,19 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
                     Editar
                   </button>
                 )}
-                <button 
+                <button
                   onClick={() => {
                     if (!canJoin) {
                       const now = new Date();
                       const scheduledDate = new Date(session.scheduled_date);
                       const joinWindowStart = new Date(scheduledDate);
                       joinWindowStart.setMinutes(joinWindowStart.getMinutes() - 90);
-                      
+
                       if (now < joinWindowStart) {
                         const diffMinutes = Math.ceil((joinWindowStart.getTime() - now.getTime()) / (1000 * 60));
                         const hours = Math.floor(diffMinutes / 60);
                         const mins = diffMinutes % 60;
-                        
+
                         if (hours > 0) {
                           addToast(`Aún no puedes unirte. Disponible en ${hours}h ${mins}min`, 'warning');
                         } else {
@@ -390,7 +389,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
             </>
           )}
           {type === 'completed' && (
-            <button 
+            <button
               onClick={() => {
                 if (onViewSummary) {
                   onViewSummary(session);
@@ -405,7 +404,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
                     xp: session.xp_earned
                   };
                   addToast(`Resumen: ${session.title} - ${session.group_name}`, 'info');
-                  console.log('Resumen de sesión:', summaryInfo);
+
                 }
               }}
               className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs sm:text-sm transition-colors font-semibold shadow-sm"
@@ -415,7 +414,7 @@ const SessionCard = ({ session, type = 'upcoming', onJoinSession, sessionActionL
           )}
         </div>
       </div>
-      
+
       {/* Modal de confirmación para eliminar sesión */}
       <ConfirmModal
         isOpen={showDeleteConfirm}

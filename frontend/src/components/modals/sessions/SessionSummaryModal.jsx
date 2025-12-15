@@ -3,10 +3,13 @@ import { X, Calendar, Clock, Users, Star, Award, FileText, MapPin, Video, Tag, G
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from '../../ui/Avatar';
 import { api } from '@/services/api';
+import { getAuthToken } from '@/services/tokenManager';
 
 const SessionSummaryModal = ({ isOpen, onClose, session }) => {
   const [userDataMap, setUserDataMap] = useState({});
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [realResources, setRealResources] = useState([]);
+  const [loadingResources, setLoadingResources] = useState(false);
   const userDataMapRef = useRef({});
 
   // Sincronizar ref con estado
@@ -24,14 +27,14 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
     // Función para buscar usuario por ID
     const fetchUserById = async (userId) => {
       if (!userId || loadingUsersSet.has(userId)) return;
-      
+
       // Verificar si ya tenemos los datos usando el ref
       if (userDataMapRef.current[userId]) {
         return;
       }
-      
+
       loadingUsersSet.add(userId);
-      
+
       try {
         // Obtener datos públicos del usuario desde la API de usuarios
         const response = await api.get(`/users/${userId}`);
@@ -61,16 +64,16 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
     const loadUserData = async () => {
       setLoadingUsers(true);
       const userIds = new Set();
-      
+
       // Agregar organizador
       if (session.organizer_id) {
         userIds.add(session.organizer_id);
       }
-      
+
       // Agregar participantes
-      const attendees = Array.isArray(session?.attendees) ? session.attendees : 
-                        Array.isArray(session?.session_attendance) ? session.session_attendance : [];
-      
+      const attendees = Array.isArray(session?.attendees) ? session.attendees :
+        Array.isArray(session?.session_attendance) ? session.session_attendance : [];
+
       attendees.forEach(attendee => {
         if (attendee?.user_id) {
           userIds.add(attendee.user_id);
@@ -82,7 +85,7 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
       // Obtener usuarios que necesitamos buscar
       // La función fetchUserById ya verifica si el usuario ya está cargado
       const usersToFetch = Array.from(userIds);
-      
+
       if (usersToFetch.length > 0 && isMounted) {
         try {
           // Hacer las peticiones en paralelo
@@ -96,7 +99,7 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
           }
         }
       }
-      
+
       if (isMounted) {
         setLoadingUsers(false);
       }
@@ -109,6 +112,58 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, session]);
+
+  // Modificación para cargar recursos reales usando el nuevo endpoint (FIX persistence)
+  // Y mantener compatibilidad con recursos legacy
+  useEffect(() => {
+    if (!isOpen || !session?.id) return;
+
+    let isMounted = true;
+
+    const fetchResources = async () => {
+      setLoadingResources(true);
+      try {
+        const response = await api.get(`/sessions/${session.id}/resources`);
+
+        if (response.success && isMounted) {
+          // Resources from backend (files table)
+          const fetchedResources = response.data?.resources || [];
+          setRealResources(fetchedResources);
+        }
+      } catch (err) {
+        console.error("Error loading resources:", err);
+      } finally {
+        if (isMounted) setLoadingResources(false);
+      }
+    };
+
+    fetchResources();
+
+    return () => { isMounted = false; };
+  }, [isOpen, session?.id]);
+
+  // Función para descargar recurso autenticado
+  const handleDownload = async (resource) => {
+    try {
+      // Show loading toast or indicator if needed
+      const fileName = resource.name || resource.original_name || 'download';
+
+      const response = await api.get(`/resources/${resource.id}/download`, {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download failed", error);
+    }
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -164,9 +219,9 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
   };
 
   // Validaciones y valores por defecto
-  const attendees = Array.isArray(session?.attendees) ? session.attendees : 
-                    Array.isArray(session?.session_attendance) ? session.session_attendance : [];
-  
+  const attendees = Array.isArray(session?.attendees) ? session.attendees :
+    Array.isArray(session?.session_attendance) ? session.session_attendance : [];
+
   // Calcular duración real
   let actualDuration = session?.duration || 0;
   if (session?.actual_start_time && session?.actual_end_time) {
@@ -178,11 +233,11 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
   } else if (session?.actual_duration !== null && session?.actual_duration !== undefined) {
     actualDuration = session.actual_duration;
   }
-  
+
   const actualStartTime = session?.actual_start_time || session?.scheduled_date;
-  const actualEndTime = session?.actual_end_time || 
-    (actualStartTime && !isNaN(new Date(actualStartTime).getTime()) 
-      ? new Date(new Date(actualStartTime).getTime() + actualDuration * 60000).toISOString() 
+  const actualEndTime = session?.actual_end_time ||
+    (actualStartTime && !isNaN(new Date(actualStartTime).getTime())
+      ? new Date(new Date(actualStartTime).getTime() + actualDuration * 60000).toISOString()
       : null);
 
   // Validar fechas antes de formatear
@@ -283,7 +338,7 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
                 <div className="flex items-center justify-between">
                   <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   <span className="text-xl sm:text-2xl font-bold text-blue-900">
-                    {safeFormatDate(session?.scheduled_date || session?.actual_start_time) !== 'N/A' ? 
+                    {safeFormatDate(session?.scheduled_date || session?.actual_start_time) !== 'N/A' ?
                       new Date(session?.scheduled_date || session?.actual_start_time).getDate() : 'N/A'}
                   </span>
                 </div>
@@ -322,7 +377,7 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">DETALLES DEL GRUPO</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   <div className="flex items-start">
-                    <div 
+                    <div
                       className={`w-5 h-5 rounded-full mr-2 flex-shrink-0 mt-0.5 ${session.groups.color || 'bg-teal-500'}`}
                     />
                     <div>
@@ -368,10 +423,10 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
               <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">INFORMACIÓN DE LA SESIÓN</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <div className="flex items-start">
-                  {(session?.location_type === 'virtual' || session?.location_type === 'online' || 
-                    (session?.location_details && (session.location_details.toLowerCase().includes('meet') || 
-                     session.location_details.toLowerCase().includes('zoom') || 
-                     session.location_details.toLowerCase().includes('teams')))) ? (
+                  {(session?.location_type === 'virtual' || session?.location_type === 'online' ||
+                    (session?.location_details && (session.location_details.toLowerCase().includes('meet') ||
+                      session.location_details.toLowerCase().includes('zoom') ||
+                      session.location_details.toLowerCase().includes('teams')))) ? (
                     <Video className="w-5 h-5 mr-2 text-gray-400 flex-shrink-0 mt-0.5" />
                   ) : (
                     <MapPin className="w-5 h-5 mr-2 text-gray-400 flex-shrink-0 mt-0.5" />
@@ -420,7 +475,7 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
                 const organizerAvatar = organizerData?.avatar || session?.organizer?.avatar || session?.organizer_avatar;
                 const organizerUniversity = organizerData?.university || session?.organizer?.university;
                 const organizerCareer = organizerData?.career || session?.organizer?.career;
-                
+
                 return (
                   <div className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 bg-white border border-gray-100 rounded-lg">
                     <Avatar
@@ -454,7 +509,7 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
                   {session.agenda.filter(item => item != null).map((item, index) => {
                     let itemText = '';
                     let itemDuration = null;
-                    
+
                     if (typeof item === 'string') {
                       itemText = item;
                     } else if (item && typeof item === 'object') {
@@ -463,9 +518,9 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
                     } else {
                       itemText = String(item || '');
                     }
-                    
+
                     if (!itemText || !itemText.trim()) return null;
-                    
+
                     return (
                       <div
                         key={index}
@@ -498,17 +553,69 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
             {session?.session_notes ? (
               <div className="mb-4 sm:mb-6">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">NOTAS DE LA SESIÓN</h3>
-                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-                  {typeof session.session_notes === 'string' ? (
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{session.session_notes}</p>
-                  ) : session.session_notes?.summary ? (
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{session.session_notes.summary}</p>
-                  ) : (
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                      {JSON.stringify(session.session_notes, null, 2)}
-                    </p>
-                  )}
-                </div>
+                {(() => {
+                  const notes = session.session_notes;
+                  // Handle string format (legacy or simple note)
+                  if (typeof notes === 'string') {
+                    return (
+                      <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{notes}</p>
+                      </div>
+                    );
+                  }
+
+                  // Handle object format (new structure)
+                  if (typeof notes === 'object') {
+                    const personalNotes = notes.personal_notes || [];
+                    const sharedNote = notes.shared || notes.notes || notes.summary;
+                    const hasShared = sharedNote && sharedNote.trim().length > 0;
+                    const hasPersonal = Array.isArray(personalNotes) && personalNotes.length > 0;
+
+                    if (!hasShared && !hasPersonal) {
+                      return (
+                        <div className="bg-gray-50 rounded-lg p-6 sm:p-8 text-center">
+                          <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-500">No hay notas disponibles</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        {hasShared && (
+                          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-lg p-3 sm:p-4">
+                            <p className="text-xs font-semibold text-blue-700 mb-2">Nota del Organizador</p>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{sharedNote}</p>
+                          </div>
+                        )}
+
+                        {hasPersonal && (
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-gray-600">Notas de Participantes ({personalNotes.length})</p>
+                            {personalNotes.map((note, index) => (
+                              <div key={note.user_id || index} className="bg-gray-50 border-l-4 border-gray-300 rounded-r-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-semibold text-gray-700">{note.user_name || 'Usuario'}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {note.updated_at ? new Date(note.updated_at).toLocaleString('es-ES', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    }) : ''}
+                                  </p>
+                                </div>
+                                <p className="text-sm text-gray-600 whitespace-pre-wrap">{note.note}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })()}
               </div>
             ) : (
               <div className="mb-4 sm:mb-6">
@@ -536,7 +643,7 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
                     const attendeeAvatar = attendeeData?.avatar || attendee?.avatar;
                     const attendeeUniversity = attendeeData?.university || attendee?.university;
                     const attendeeCareer = attendeeData?.career || attendee?.career;
-                    
+
                     const getStatusLabel = (status) => {
                       const statusMap = {
                         'attended': 'Asistió',
@@ -558,7 +665,7 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
                       };
                       return colorMap[status] || 'bg-gray-100 text-gray-800';
                     };
-                    
+
                     return (
                       <div
                         key={attendeeId}
@@ -618,62 +725,145 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
               </div>
             )}
 
-            {/* Resources */}
-            {session?.resources && Array.isArray(session.resources) && session.resources.length > 0 ? (
+
+
+            {/* Resources (Cards Grid) */}
+            {loadingResources ? (
+              <div className="flex justify-center p-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              </div>
+            ) : (realResources && realResources.length > 0) || (session?.resources && Array.isArray(session.resources) && session.resources.length > 0) ? (
               <div className="mb-4 sm:mb-6">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">RECURSOS COMPARTIDOS</h3>
-                <div className="space-y-2">
-                  {session.resources.filter(resource => resource != null).map((resource, index) => {
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Display Real Resources (Linked Files) */}
+                  {realResources && realResources.map((resource, index) => {
+                    const resourceName = resource.name || resource.original_name || "Recurso";
+                    const uploader = resource.uploader || {};
+                    const uploadDate = resource.created_at ? new Date(resource.created_at).toLocaleDateString() : '';
+
+                    // Helper to determine icon based on mime type or extension
+                    const getIcon = () => {
+                      const mime = resource.mime_type || '';
+                      if (mime.includes('pdf')) return <FileText className="w-8 h-8 text-red-500" />;
+                      if (mime.includes('image')) return <FileText className="w-8 h-8 text-blue-500" />;
+                      if (mime.includes('spreadsheet') || mime.includes('excel')) return <FileText className="w-8 h-8 text-green-500" />;
+                      return <FileText className="w-8 h-8 text-gray-500" />;
+                    };
+
+                    return (
+                      <div
+                        key={`real-${resource.id || index}`}
+                        className="flex flex-col p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow relative group"
+                      >
+                        <div className="flex items-start space-x-3 mb-2">
+                          <div className="flex-shrink-0 bg-gray-50 p-2 rounded-lg">
+                            {getIcon()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium text-gray-900 truncate" title={resourceName}>
+                              {resourceName}
+                            </h4>
+                            {resource.size && (
+                              <p className="text-xs text-gray-500">
+                                {(resource.size / 1024).toFixed(1)} KB
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Enrich with Uploader Info */}
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
+                          <div className="flex items-center space-x-2 min-w-0">
+                            {uploader.avatar ? (
+                              <img src={uploader.avatar} alt={uploader.name} className="w-5 h-5 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[10px] text-blue-600 font-bold">
+                                {uploader.name ? uploader.name.charAt(0).toUpperCase() : '?'}
+                              </div>
+                            )}
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs text-gray-600 truncate max-w-[80px] sm:max-w-[100px]" title={uploader.name}>
+                                {uploader.name || 'Desconocido'}
+                              </span>
+                              {uploadDate && <span className="text-[10px] text-gray-400">{uploadDate}</span>}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleDownload(resource)}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                            Descargar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Display Legacy Resources */}
+                  {session?.resources && Array.isArray(session.resources) && session.resources.map((resource, index) => {
+                    if (!resource) return null;
+
                     let resourceText = '';
                     let resourceUrl = null;
                     let resourceType = null;
-                    
+
                     if (typeof resource === 'string') {
                       resourceText = resource;
                       resourceUrl = resource.startsWith('http') ? resource : null;
-                    } else if (resource && typeof resource === 'object') {
+                    } else if (typeof resource === 'object') {
+                      if (realResources.some(r => r.id === resource.id)) return null;
+
                       resourceUrl = resource.url || resource.value || resource.link || null;
-                      resourceType = resource.type || null;
-                      // Si es un link, usar el URL como texto si no hay nombre/título
+                      resourceType = resource.type || 'link';
                       if (resourceType === 'link' && resourceUrl) {
                         resourceText = resource.name || resource.title || resourceUrl;
                       } else {
                         resourceText = resource.name || resource.title || resource.value || String(resource);
                       }
                     } else {
-                      resourceText = String(resource || '');
+                      resourceText = String(resource);
                     }
-                    
+
                     if (!resourceText || !resourceText.trim()) return null;
-                    
+
                     const isLink = resourceType === 'link' || (resourceUrl && resourceUrl.startsWith('http'));
-                    
+
                     return (
                       <div
-                        key={resource?.id || index}
-                        className="flex items-center space-x-2 p-2 sm:p-3 bg-white border border-gray-100 rounded-lg hover:shadow-sm transition"
+                        key={`legacy-${index}`}
+                        className="flex flex-col p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                       >
-                        {isLink ? (
-                          <a
-                            href={resourceUrl || resourceText}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center space-x-2 flex-1 min-w-0 text-blue-600 hover:text-blue-800"
-                          >
-                            <FileText className="w-4 h-4 flex-shrink-0" />
-                            <span className="text-sm font-medium flex-1 truncate">
+                        <div className="flex items-start space-x-3 mb-2">
+                          <div className="flex-shrink-0 bg-gray-50 p-2 rounded-lg">
+                            <FileText className="w-8 h-8 text-gray-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium text-gray-900 truncate" title={resourceText}>
                               {resourceText}
-                            </span>
-                            <span className="text-xs text-gray-500 flex-shrink-0">↗</span>
-                          </a>
-                        ) : (
-                          <>
-                            <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <span className="text-sm text-gray-600 flex-1 truncate">
-                              {resourceText}
-                            </span>
-                          </>
-                        )}
+                            </h4>
+                            <p className="text-xs text-gray-500 uppercase tracking-wide">
+                              {isLink ? 'Enlace Externo' : 'Recurso de Texto'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto pt-2 border-t border-gray-50 flex justify-end">
+                          {isLink ? (
+                            <a
+                              href={resourceUrl || resourceText}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                            >
+                              Visitar Enlace ↗
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400 cursor-default px-2 py-1">Solo lectura</span>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -682,7 +872,7 @@ const SessionSummaryModal = ({ isOpen, onClose, session }) => {
             ) : (
               <div className="mb-4 sm:mb-6">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">RECURSOS COMPARTIDOS</h3>
-                <div className="bg-gray-50 rounded-lg p-6 sm:p-8 text-center">
+                <div className="bg-gray-50 rounded-lg p-6 sm:p-8 text-center border-2 border-dashed border-gray-200">
                   <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm text-gray-500">No hay recursos compartidos</p>
                 </div>

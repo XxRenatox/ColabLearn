@@ -10,28 +10,20 @@ export const useSessions = () => {
   const createSession = useCallback(async (sessionData) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await sessionsAPI.createSession(sessionData);
       addToast('Sesión creada exitosamente', 'success');
       return response.data;
     } catch (err) {
       // Log detallado del error
-      console.error('Error en createSession:', err);
-      console.error('Error completo:', {
-        message: err.message,
-        status: err.status,
-        response: err.response,
-        responseData: err.response?.data,
-        errors: err.errors,
-        original: err.original
-      });
-      
+
+
       // El error puede venir de buildError, que transforma la estructura
       // Intentar obtener el mensaje de diferentes formas
       const errorMessage = err.message || err.response?.data?.message || err.original?.message || 'Error creando la sesión';
       const errors = err.errors || err.response?.data?.errors || err.original?.errors || [];
-      
+
       // Si hay errores de validación, mostrar el primero
       if (errors.length > 0) {
         const firstError = errors[0];
@@ -42,7 +34,7 @@ export const useSessions = () => {
         setError(errorMessage);
         addToast(errorMessage, 'error');
       }
-      
+
       throw err;
     } finally {
       setLoading(false);
@@ -52,7 +44,7 @@ export const useSessions = () => {
   const joinSession = useCallback(async (sessionId) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await sessionsAPI.joinSession(sessionId);
       addToast(response.message || 'Te has unido a la sesión exitosamente', 'success');
@@ -70,7 +62,7 @@ export const useSessions = () => {
   const leaveSession = useCallback(async (sessionId) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await sessionsAPI.leaveSession(sessionId);
       addToast('Has salido de la sesión exitosamente', 'success');
@@ -85,10 +77,10 @@ export const useSessions = () => {
     }
   }, [addToast]);
 
-    const deleteSession = useCallback(async (sessionId) => {
+  const deleteSession = useCallback(async (sessionId) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await sessionsAPI.deleteSession(sessionId);
       addToast('Sesión eliminada exitosamente', 'success');
@@ -107,7 +99,7 @@ export const useSessions = () => {
   const getSessions = useCallback(async (params = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await sessionsAPI.getSessions(params);
       return response.data;
@@ -123,7 +115,7 @@ export const useSessions = () => {
   const updateSession = useCallback(async (sessionId, sessionData) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await sessionsAPI.updateSession(sessionId, sessionData);
       addToast('Sesión actualizada exitosamente', 'success');
@@ -142,7 +134,7 @@ export const useSessions = () => {
   const getGroupSessions = useCallback(async (groupId, params = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await sessionsAPI.getGroupSessions(groupId, params);
       return response.data;
@@ -155,10 +147,13 @@ export const useSessions = () => {
     }
   }, []);
 
+
+
   return {
     loading,
     error,
     createSession,
+
     joinSession,
     leaveSession,
     deleteSession,

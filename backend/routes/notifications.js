@@ -1,9 +1,9 @@
 const express = require('express');
 const { body, query, validationResult } = require('express-validator');
 const { supabase, supabaseAdmin } = require('../config/database');
-const { 
-  asyncHandler, 
-  AppError, 
+const {
+  asyncHandler,
+  AppError,
   createValidationError,
   createNotFoundError
 } = require('../middleware/errorHandler');
@@ -215,7 +215,7 @@ router.delete('/clear-all', asyncHandler(async (req, res) => {
     .select();
 
   if (error) {
-    console.error('Error eliminando notificaciones:', error);
+
     throw new AppError('Error eliminando notificaciones: ' + error.message, 500);
   }
 
@@ -291,7 +291,7 @@ router.post('/', [
   // Enviar notificación en tiempo real a través de Socket.IO
   const io = req.app.get('io');
   const sendNotification = req.app.get('sendNotification');
-  
+
   if (sendNotification && notification) {
     sendNotification(user_id, {
       id: notification.id,
@@ -361,7 +361,7 @@ router.post('/bulk', [
 
   // Enviar notificaciones en tiempo real a través de Socket.IO
   const sendNotification = req.app.get('sendNotification');
-  
+
   if (sendNotification && createdNotifications && createdNotifications.length > 0) {
     // Enviar cada notificación a su usuario correspondiente
     createdNotifications.forEach(notification => {
@@ -384,7 +384,7 @@ router.post('/bulk', [
   res.status(201).json({
     success: true,
     message: `${createdNotifications.length} notificaciones creadas exitosamente`,
-    data: { 
+    data: {
       notifications: createdNotifications,
       count: createdNotifications.length
     }

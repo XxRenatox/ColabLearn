@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Menu, X, LogOut, User } from "lucide-react";
+import { Menu, X, LogOut, User, Hand } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../hooks/useUser";
 import Avatar from "../ui/Avatar";
@@ -84,23 +84,28 @@ export default function Header () {
             : "bg-transparent backdrop-blur-none shadow-none"
         }`}
       >
-        <div className="flex justify-between items-center px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 py-3 sm:py-4 md:py-5 lg:py-6 relative z-10">
+        <div className="flex justify-between items-center px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 py-3 sm:py-4 md:py-5 lg:py-6 relative z-10 gap-2 sm:gap-4">
           {/* Logo */}
-          <div className="flex items-center">
+          <button 
+            onClick={() => navigate('/')}
+            className="flex items-center space-x-2 hover:opacity-80 transition-opacity flex-shrink-0 min-w-0"
+            aria-label="Ir al inicio"
+          >
             <img 
               src="/logo.svg" 
               alt="ColabLearn Logo" 
-              className="h-10 sm:h-12 md:h-14 lg:h-16 w-auto"
+              className="h-8 sm:h-10 md:h-12 w-auto flex-shrink-0"
             />
-          </div>
+            <span className="text-xl sm:text-2xl md:text-3xl font-bold text-white whitespace-nowrap">ColabLearn</span>
+          </button>
 
           {/* Navegación Desktop */}
-          <nav className="hidden md:flex gap-4 lg:gap-6 xl:gap-8 text-gray-300 font-medium text-sm lg:text-base">
+          <nav className="hidden lg:flex gap-4 xl:gap-6 text-gray-300 font-medium text-sm xl:text-base flex-shrink-0">
             {navItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="hover:text-indigo-400 transition-colors duration-300 relative group px-2 py-1"
+                className="hover:text-indigo-400 transition-colors duration-300 relative group px-2 py-1 whitespace-nowrap"
               >
                 {item.label}
                 <span className="absolute -bottom-1 left-2 right-2 h-0.5 bg-gradient-to-r from-purple-500 to-indigo-400 transition-all duration-300 group-hover:w-full w-0"></span>
@@ -109,18 +114,20 @@ export default function Header () {
           </nav>
 
           {/* Perfil/Auth Desktop */}
-          <div className="hidden md:flex items-center gap-2 lg:gap-3">
+          <div className="hidden md:flex items-center gap-2 lg:gap-3 flex-shrink-0">
             {isAuthenticated && user ? (
               <div className="relative user-menu-container">
                 <div 
                   className="flex items-center gap-2 md:gap-2.5 lg:gap-3 bg-white/10 px-3 md:px-3.5 lg:px-4 py-1.5 md:py-2 lg:py-2.5 rounded-full border border-white/10 hover:bg-white/15 cursor-pointer transition-all"
                   onClick={() => setShowUserMenu(!showUserMenu)}
                 >
-                  <span className="text-gray-300 text-xs md:text-sm lg:text-base xl:text-lg whitespace-nowrap hidden lg:inline">
-                    👋 Hola, {fullName?.split(' ')[0] || 'Usuario'}
+                  <span className="text-gray-300 text-xs md:text-sm lg:text-base xl:text-lg whitespace-nowrap hidden lg:inline flex items-center gap-1">
+                    <Hand className="w-4 h-4" />
+                    Hola, {fullName?.split(' ')[0] || 'Usuario'}
                   </span>
-                  <span className="text-gray-300 text-xs md:text-sm whitespace-nowrap lg:hidden">
-                    👋 {fullName?.split(' ')[0] || 'Usuario'}
+                  <span className="text-gray-300 text-xs md:text-sm whitespace-nowrap lg:hidden flex items-center gap-1">
+                    <Hand className="w-4 h-4" />
+                    {fullName?.split(' ')[0] || 'Usuario'}
                   </span>
                   <Avatar
                     userId={user?.id || user?.email || 'user'}
@@ -214,13 +221,20 @@ export default function Header () {
         <div className="flex flex-col h-full pt-16 sm:pt-20 pb-4 sm:pb-6 px-4 sm:px-6">
           {/* Header del menú móvil */}
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
-            <div className="flex items-center">
+            <button 
+              onClick={() => {
+                navigate('/');
+                setMenuOpen(false);
+              }}
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+            >
               <img 
                 src="/logo.svg" 
                 alt="ColabLearn Logo" 
                 className="h-12 w-auto"
               />
-            </div>
+              <span className="text-2xl font-bold text-white">ColabLearn</span>
+            </button>
             <button
               onClick={() => setMenuOpen(false)}
               className="text-gray-300 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"

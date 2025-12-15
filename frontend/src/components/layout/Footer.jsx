@@ -1,14 +1,33 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Facebook, Twitter, Instagram, MessageCircle, Mail, ExternalLink } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Facebook, Twitter, Instagram, MessageCircle, Mail, ExternalLink, Heart } from "lucide-react";
 
 const Footer = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Función para manejar navegación
   const handleNavigation = (path) => {
     if (path.startsWith('http')) {
       window.open(path, '_blank', 'noopener,noreferrer');
+    } else if (path.startsWith('#')) {
+      // Manejo de anchor links
+      if (location.pathname === '/') {
+        // Si estamos en la landing page, solo hacemos scroll
+        const element = document.querySelector(path);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } else {
+        // Si no estamos en la landing, navegamos primero a "/" y luego hacemos scroll
+        navigate('/');
+        setTimeout(() => {
+          const element = document.querySelector(path);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      }
     } else {
       navigate(path);
     }
@@ -22,9 +41,11 @@ const Footer = () => {
       <div className="grid md:grid-cols-5 gap-12 mb-12">
         <div className="md:col-span-2">
           <div className="flex items-center space-x-3 mb-6">
-            <div className="bg-gradient-to-r from-cyan-400 to-purple-500 w-12 h-12 rounded-2xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">S</span>
-            </div>
+            <img 
+              src="/logo.svg" 
+              alt="ColabLearn Logo" 
+              className="h-12 w-auto"
+            />
             <span className="text-3xl font-bold">ColabLearn</span>
           </div>
           <p className="text-gray-400 text-lg leading-relaxed mb-6">
@@ -76,18 +97,25 @@ const Footer = () => {
           <h4 className="font-bold text-lg mb-6 text-purple-400">Producto</h4>
           <div className="space-y-3 text-gray-400">
             <button
-              onClick={() => handleNavigation('#features')}
+              onClick={() => handleNavigation('#how-it-works')}
               className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Ver características de ColabLearn"
+              aria-label="Ver cómo funciona ColabLearn"
             >
-              Características
+              Cómo Funciona
             </button>
             <button
-              onClick={() => handleNavigation('/pricing')}
+              onClick={() => handleNavigation('#stats')}
               className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Ver precios de ColabLearn"
+              aria-label="Ver estadísticas de ColabLearn"
             >
-              Precios
+              Comunidad
+            </button>
+            <button
+              onClick={() => handleNavigation('#testimonials')}
+              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
+              aria-label="Ver testimonios"
+            >
+              Testimonios
             </button>
             <a
               href="https://docs.colablearn.com/api"
@@ -99,40 +127,12 @@ const Footer = () => {
               API para Desarrolladores
               <ExternalLink className="inline w-3 h-3 ml-1" />
             </a>
-            <button
-              onClick={() => handleNavigation('/integrations')}
-              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Ver integraciones disponibles"
-            >
-              Integraciones
-            </button>
-            <button
-              onClick={() => handleNavigation('/mobile')}
-              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Descargar aplicación móvil"
-            >
-              Móvil
-            </button>
           </div>
         </div>
 
         <div>
           <h4 className="font-bold text-lg mb-6 text-blue-400">Soporte</h4>
           <div className="space-y-3 text-gray-400">
-            <button
-              onClick={() => handleNavigation('/help')}
-              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Centro de Ayuda de ColabLearn"
-            >
-              Centro de Ayuda
-            </button>
-            <button
-              onClick={() => handleNavigation('/chat')}
-              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Iniciar chat en vivo con soporte"
-            >
-              Chat en Vivo
-            </button>
             <button
               onClick={() => handleNavigation('/contact')}
               className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
@@ -150,13 +150,16 @@ const Footer = () => {
               Estado del Servicio
               <ExternalLink className="inline w-3 h-3 ml-1" />
             </a>
-            <button
-              onClick={() => handleNavigation('/community')}
-              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Unirse a la comunidad"
+            <a
+              href="https://blog.colablearn.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300"
+              aria-label="Blog de Educación (se abre en nueva pestaña)"
             >
-              Comunidad
-            </button>
+              Blog
+              <ExternalLink className="inline w-3 h-3 ml-1" />
+            </a>
           </div>
         </div>
 
@@ -177,39 +180,17 @@ const Footer = () => {
               className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300"
               aria-label="Blog de Educación (se abre en nueva pestaña)"
             >
-              Blog de Educación
+              Blog
               <ExternalLink className="inline w-3 h-3 ml-1" />
             </a>
-            <button
-              onClick={() => handleNavigation('/careers')}
-              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Ver oportunidades de trabajo"
-            >
-              Carreras
-            </button>
-            <button
-              onClick={() => handleNavigation('/press')}
-              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Información para prensa"
-            >
-              Prensa
-            </button>
-            <button
-              onClick={() => handleNavigation('/investors')}
-              className="block hover:text-cyan-400 transition-colors hover:translate-x-1 transform duration-300 text-left"
-              aria-label="Información para inversionistas"
-            >
-              Inversionistas
-            </button>
           </div>
         </div>
       </div>
 
       <div className="border-t border-gray-800 pt-8">
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <p className="text-gray-400">
-            &copy; 2025 ColabLearn. Todos los derechos reservados. Hecho con ❤️
-            para estudiantes.
+          <p className="text-gray-400 flex items-center gap-1 flex-wrap">
+            &copy; 2025 ColabLearn. Todos los derechos reservados. Hecho con <Heart className="w-4 h-4 text-red-400 inline" /> para estudiantes.
           </p>
           <div className="flex items-center space-x-8 text-gray-400 text-sm">
             <button

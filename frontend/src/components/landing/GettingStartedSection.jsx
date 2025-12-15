@@ -10,7 +10,7 @@ import {
   Play,
 } from "lucide-react";
 
-export default function GettingStartedSection() {
+export default function GettingStartedSection({ onAuthAction }) {
   const [activeDemo, setActiveDemo] = useState("profile");
 
   const demoSteps = {
@@ -242,7 +242,10 @@ export default function GettingStartedSection() {
 
                 {/* CTA */}
                 <div className="mt-8 pt-6 border-t border-gray-200">
-                  <button className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                  <button 
+                    onClick={onAuthAction}
+                    className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
                     <Play className="w-4 h-4 mr-2" />
                     Probar Ahora Gratis
                   </button>
@@ -358,7 +361,10 @@ export default function GettingStartedSection() {
                   <p className="text-blue-100 mb-6">
                     Todas las funciones principales sin costo
                   </p>
-                  <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center">
+                  <button 
+                    onClick={onAuthAction}
+                    className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center"
+                  >
                     Comenzar Ahora
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </button>

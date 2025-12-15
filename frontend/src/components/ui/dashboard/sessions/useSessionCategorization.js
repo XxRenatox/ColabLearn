@@ -16,7 +16,15 @@ export const useSessionCategorization = (sessions, user) => {
       
       let actualStatus = session.status;
       
-      if (actualStatus !== 'completed' && actualStatus !== 'cancelled') {
+      // Si la sesión ya está en progreso, mantenerla como activa
+      if (actualStatus === 'in_progress') {
+        // Verificar que no haya terminado
+        if (sessionEnd < now) {
+          actualStatus = 'completed';
+        }
+        // Si no ha terminado, mantener como 'in_progress'
+      } else if (actualStatus !== 'completed' && actualStatus !== 'cancelled') {
+        // Para sesiones programadas, calcular el estado basado en fechas
         if (sessionEnd < now) {
           actualStatus = 'completed';
         } else if (scheduledDate <= now && sessionEnd > now) {
@@ -44,17 +52,28 @@ export const useSessionCategorization = (sessions, user) => {
           session_notes: session.session_notes || null,
           xp_earned: session.xp_earned || 0
         });
-      } else if (actualStatus === 'in_progress' && sessionEnd > now) {
-        const startTime = session.actual_start_time ? new Date(session.actual_start_time) : scheduledDate;
-        const elapsedMinutes = Math.max(0, Math.floor((now.getTime() - startTime.getTime()) / (1000 * 60)));
-        
-        if (elapsedMinutes >= 0 && elapsedMinutes <= durationMinutes) {
-          active.push({
-            ...sessionData,
-            timeElapsed: elapsedMinutes,
-            participants: session.attendees?.length || session.session_attendance?.length || 0,
-          });
+      } else if (actualStatus === 'in_progress') {
+        // Si la sesión está en progreso, verificar que no haya terminado
+        if (sessionEnd > now) {
+          const startTime = session.actual_start_time ? new Date(session.actual_start_time) : scheduledDate;
+          const elapsedMinutes = Math.max(0, Math.floor((now.getTime() - startTime.getTime()) / (1000 * 60)));
+          
+          if (elapsedMinutes >= 0 && elapsedMinutes <= durationMinutes) {
+            active.push({
+              ...sessionData,
+              timeElapsed: elapsedMinutes,
+              participants: session.attendees?.length || session.session_attendance?.length || 0,
+            });
+          } else {
+            completed.push({
+              ...sessionData,
+              average_rating: session.average_rating || null,
+              session_notes: session.session_notes || null,
+              xp_earned: session.xp_earned || 0
+            });
+          }
         } else {
+          // La sesión en progreso ya terminó
           completed.push({
             ...sessionData,
             average_rating: session.average_rating || null,

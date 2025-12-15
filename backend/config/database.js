@@ -19,14 +19,6 @@ const supabaseAdmin = createClient(
   }
 );
 
-// Cliente de PostgreSQL para consultas complejas (opcional)
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
-
 // Función para crear cliente Supabase autenticado como usuario específico
 const createAuthenticatedClient = async (accessToken) => {
   const client = createClient(
@@ -48,6 +40,7 @@ const createAuthenticatedClient = async (accessToken) => {
 
   return client;
 };
+
 const testConnection = async () => {
   try {
     const { data, error } = await supabase.from('users').select('count').limit(1);
@@ -70,36 +63,17 @@ const handleSupabaseError = (error) => {
   };
 
   const mappedError = errorMap[error.code] || errorMap[error.error_description];
-  
+
   return {
     code: mappedError?.code || 500,
     message: mappedError?.message || error.message || 'Error interno del servidor'
   };
 };
 
-// Función para crear transacciones
-const createTransaction = async (callback) => {
-  const client = await pool.connect();
-  
-  try {
-    await client.query('BEGIN');
-    const result = await callback(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
-};
-
 module.exports = {
   supabase,
   supabaseAdmin,
-  pool,
   testConnection,
   handleSupabaseError,
-  createTransaction,
   createAuthenticatedClient
 };

@@ -13,6 +13,13 @@ import AdminRoute from './components/auth/AdminRoute';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import CookiesPage from './pages/CookiesPage';
+import SecurityPage from './pages/SecurityPage';
+
 
 // Componente principal de la aplicación
 function AppContent() {
@@ -31,7 +38,7 @@ function AppContent() {
             <MatchingPreferences />
           </ProtectedRoute>
         } />
-        
+
         {/* Rutas adicionales que se pueden implementar */}
         <Route path="/groups" element={
           <ProtectedRoute>
@@ -73,7 +80,16 @@ function AppContent() {
             <ColabLearnUserPanel />
           </ProtectedRoute>
         } />
-        
+
+
+        {/* Páginas públicas legales y de información */}
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/cookies" element={<CookiesPage />} />
+        <Route path="/security" element={<SecurityPage />} />
+
         {/* Ruta catch-all para 404 */}
         <Route path="*" element={
           <div className="flex items-center justify-center min-h-screen">
@@ -99,7 +115,7 @@ const AppProvidersContent = ({ children }) => {
   const currentUser = authContext?.currentUser || null;
   const isAuthenticated = authContext?.isAuthenticated || false;
   const loading = authContext?.loading || false;
-  
+
   // AppContext tiene user directamente y también en state.user
   const appUser = appContext?.user || appContext?.state?.user || null;
   const appIsAuthenticated = appContext?.isAuthenticated || false;

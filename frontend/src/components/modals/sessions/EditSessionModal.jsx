@@ -3,6 +3,8 @@ import { X, Calendar, Clock, Users, MapPin, Video } from 'lucide-react';
 import { useSessions } from '../../../hooks/useSessions';
 import { useResources } from '../../../hooks/useResources';
 import { useToast } from '../../../components/ui/Toast';
+import { api } from '@/services/api';
+import { getAuthToken } from '@/services/tokenManager';
 
 const EditSessionModal = ({ isOpen, onClose, session, onSessionUpdated }) => {
   const { updateSession, loading } = useSessions();
@@ -10,6 +12,7 @@ const EditSessionModal = ({ isOpen, onClose, session, onSessionUpdated }) => {
   const { addToast } = useToast();
   const [groupResources, setGroupResources] = useState([]);
   const [loadingResources, setLoadingResources] = useState(false);
+  const [initialResourceIds, setInitialResourceIds] = useState([]); // To track original resources for delta updates
 
   const [formData, setFormData] = useState({
     title: '',
@@ -54,16 +57,43 @@ const EditSessionModal = ({ isOpen, onClose, session, onSessionUpdated }) => {
   // Cargar datos de la sesión cuando se abre el modal
   useEffect(() => {
     if (isOpen && session) {
-      const scheduledDate = session.scheduled_date 
+      const scheduledDate = session.scheduled_date
         ? formatDateForInput(session.scheduled_date)
         : '';
-      
+
       // Validar si se puede editar (antes de 1 hora de que empiece)
       const sessionDate = session.scheduled_date ? new Date(session.scheduled_date) : null;
       const now = new Date();
       const oneHourBefore = sessionDate ? new Date(sessionDate.getTime() - (60 * 60 * 1000)) : null;
       const canEdit = !sessionDate || now < oneHourBefore;
-      
+
+
+      const fetchSessionResources = async () => {
+        try {
+          const token = getAuthToken();
+          const res = await api.get(`/sessions/${session.id}/resources`);
+          if (res.data?.success) {
+            const currentResources = res.data.data.resources || [];
+            const resourceIds = currentResources.map(r => r.id);
+
+            setInitialResourceIds(resourceIds); // Store initial state
+
+            setFormData(prev => ({
+              ...prev,
+              resources: resourceIds
+            }));
+          }
+        } catch (e) {
+          console.error("Error fetching session resources:", e);
+          // Fallback to session data if fetch fails
+          setInitialResourceIds(Array.isArray(session.resources) ? session.resources.map(r => r.id || r) : []);
+        }
+      };
+
+      if (session.id) {
+        fetchSessionResources();
+      }
+
       setFormData({
         title: session.title || '',
         description: session.description || '',
@@ -76,7 +106,7 @@ const EditSessionModal = ({ isOpen, onClose, session, onSessionUpdated }) => {
         platform: session.platform || 'Google Meet',
         max_attendees: session.max_attendees || 20,
         agenda: Array.isArray(session.agenda) ? session.agenda : [],
-        resources: Array.isArray(session.resources) ? session.resources : [],
+        resources: Array.isArray(session.resources) ? session.resources.map(r => r.id || r) : [], // Initial, will be overwritten by fetch
         additionalResources: [],
         canEdit // Guardar si se puede editar
       });
@@ -116,7 +146,7 @@ const EditSessionModal = ({ isOpen, onClose, session, onSessionUpdated }) => {
       const sessionDate = new Date(session.scheduled_date);
       const now = new Date();
       const oneHourBefore = new Date(sessionDate.getTime() - (60 * 60 * 1000));
-      
+
       if (now >= oneHourBefore) {
         addToast('No puedes editar esta sesión. Solo puedes hacer cambios hasta 1 hora antes de que comience la sesión.', 'warning');
         return;
@@ -130,15 +160,48 @@ const EditSessionModal = ({ isOpen, onClose, session, onSessionUpdated }) => {
       const localDateTime = formData.scheduled_date; // "YYYY-MM-DDTHH:mm"
       const scheduledDateTime = `${localDateTime}:00.000Z`;
 
+      // Calculate all resources first
+      const allResources = [
+        ...formData.resources,
+        ...formData.additionalResources
+      ];
+
+      // Handle Resource Delta Updates (Link/Unlink)
+      // 1. Identify added resources
+      const addedResources = allResources.filter(id => !initialResourceIds.includes(id));
+
+      // 2. Identify removed resources
+      const removedResources = initialResourceIds.filter(id => !allResources.includes(id));
+
+      // 3. Process changes concurrently but don't block
+      const promises = [];
+      const token = getAuthToken();
+
+      // Link new resources
+      for (const fileId of addedResources) {
+        promises.push(
+          api.post(`/sessions/${session.id}/resources/link`, { file_id: fileId })
+            .catch(e => console.error(`Error linking resource ${fileId}:`, e))
+        );
+      }
+
+      // Unlink removed resources
+      for (const fileId of removedResources) {
+        promises.push(
+          api.delete(`/sessions/${session.id}/resources/${fileId}`)
+            .catch(e => console.error(`Error unlinking resource ${fileId}:`, e))
+        );
+      }
+
+      // Execute resource updates
+      await Promise.allSettled(promises);
+
       const sessionData = {
         ...formData,
         scheduled_date: scheduledDateTime,
         duration: parseInt(formData.duration),
         max_attendees: parseInt(formData.max_attendees),
-        resources: [
-          ...formData.resources,
-          ...formData.additionalResources
-        ]
+        resources: allResources // Send snapshot for legacy compatibility
       };
 
       // Eliminar campos que no deben enviarse
@@ -304,7 +367,7 @@ const EditSessionModal = ({ isOpen, onClose, session, onSessionUpdated }) => {
           {/* Ubicación */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Ubicación</h3>
-              
+
             <div className="flex space-x-4">
               <label className="flex items-center">
                 <input
@@ -457,7 +520,7 @@ const EditSessionModal = ({ isOpen, onClose, session, onSessionUpdated }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Recursos de la Sesión
               </label>
-              
+
               {loadingResources ? (
                 <p className="text-sm text-gray-500">Cargando recursos...</p>
               ) : groupResources.length > 0 ? (

@@ -20,19 +20,7 @@ router.post('/', (req, res) => {
       timestamp: logTimestamp
     };
     
-    switch (level) {
-      case 'error':
-        console.error(logPrefix, message || '', logData);
-        break;
-      case 'warn':
-        console.warn(logPrefix, message || '', logData);
-        break;
-      case 'info':
-      case 'log':
-      default:
-        console.log(logPrefix, message || '', logData);
-        break;
-    }
+    // Logs deshabilitados - no mostrar en consola
     
     // Responder rápidamente sin bloquear
     res.status(200).json({ success: true });

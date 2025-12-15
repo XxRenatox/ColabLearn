@@ -20,11 +20,7 @@ const log = (level, message, context = {}) => {
   const timestamp = new Date().toISOString();
   const base = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
   const hasContext = context && Object.keys(context).length > 0;
-  if (level === 'error' || level === 'warn') {
-    console[level](base, hasContext ? context : '');
-  } else {
-    console.log(base, hasContext ? context : '');
-  }
+
 };
 
 const logger = {
@@ -169,8 +165,8 @@ app.use('/api/matching', auth, matchingRoutes);
 // Ruta de health check
 app.get('/health', async (req, res) => {
   const dbStatus = await testConnection();
-  
-  res.json({ 
+
+  res.json({
     status: dbStatus ? 'OK' : 'ERROR',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
@@ -224,6 +220,5 @@ server.listen(PORT, async () => {
   logger.success('Servidor backend escuchando', {
     url: `http://localhost:${PORT}`,
   });
-  console.log(`Servidor backend escuchando en http://localhost:${PORT}`); 
-  console.log(`Conexión a la base de datos verificada: ${await testConnection() ? 'OK' : 'ERROR'}`);
+
 });

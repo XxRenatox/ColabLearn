@@ -21,7 +21,7 @@ const processQueue = (error, token = null) => {
       prom.resolve(token);
     }
   });
-  
+
   failedQueue = [];
 };
 
@@ -33,13 +33,13 @@ export const setupTokenRefresh = (axiosInstance) => {
   axiosInstance.interceptors.request.use(
     async (config) => {
       const token = getAuthToken();
-      
+
       if (token) {
         // Si el token está próximo a expirar o ya expiró, renovarlo
         if (shouldRefreshToken() || isAccessTokenExpired()) {
           if (!isRefreshing) {
             isRefreshing = true;
-            
+
             try {
               const newTokens = await refreshAccessToken();
               processQueue(null, newTokens.token);
@@ -67,7 +67,7 @@ export const setupTokenRefresh = (axiosInstance) => {
           config.headers.Authorization = `Bearer ${token}`;
         }
       }
-      
+
       return config;
     },
     (error) => {
@@ -86,28 +86,30 @@ export const setupTokenRefresh = (axiosInstance) => {
       // Si es un 403 con mensaje de cuenta desactivada, cerrar sesión
       if (error.response?.status === 403) {
         const errorMessage = error.response?.data?.message || '';
-        if (errorMessage.toLowerCase().includes('cuenta desactivada') || 
-            errorMessage.toLowerCase().includes('desactivada') ||
-            errorMessage.toLowerCase().includes('account deactivated')) {
-          
+        if (errorMessage.toLowerCase().includes('cuenta desactivada') ||
+          errorMessage.toLowerCase().includes('desactivada') ||
+          errorMessage.toLowerCase().includes('account deactivated')) {
+
           // Guardar mensaje para mostrarlo en la página de login
           setDeactivationMessage(errorMessage || 'Tu cuenta ha sido desactivada por un administrador.');
-          
+
           // Limpiar tokens
           clearAuthTokens();
           delete axiosInstance.defaults.headers.common['Authorization'];
-          
+
           // Redirigir a login (el toast se mostrará en la página de login)
           if (typeof window !== 'undefined') {
             window.location.href = '/login';
           }
-          
+
           return Promise.reject(error);
         }
       }
 
-      // Si es un 401 y no es un request de refresh, intentar renovar
-      if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
+      // Si es un 401 y no es un request de refresh ni de login, intentar renovar
+      if (error.response?.status === 401 && !originalRequest._retry &&
+        !originalRequest.url?.includes('/auth/refresh') &&
+        !originalRequest.url?.includes('/auth/login')) {
         if (isRefreshing) {
           // Ya se está renovando, esperar en la cola
           return new Promise((resolve, reject) => {
@@ -126,24 +128,24 @@ export const setupTokenRefresh = (axiosInstance) => {
         try {
           const newTokens = await refreshAccessToken();
           processQueue(null, newTokens.token);
-          
+
           originalRequest.headers.Authorization = `Bearer ${newTokens.token}`;
           isRefreshing = false;
-          
+
           // Reintentar el request original
           return axiosInstance.request(originalRequest);
         } catch (refreshError) {
           processQueue(refreshError, null);
           isRefreshing = false;
-          
+
           // Si falla la renovación, limpiar tokens y redirigir
           clearAuthTokens();
-          
+
           // Redirigir a login solo si no estamos ya ahí
           if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
             window.location.href = '/login';
           }
-          
+
           return Promise.reject(refreshError);
         }
       }

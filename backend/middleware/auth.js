@@ -6,7 +6,7 @@ const auth = async (req, res, next) => {
   try {
     // Obtener token del header
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -55,9 +55,9 @@ const auth = async (req, res, next) => {
         await TokenBlacklistService.blacklistToken(token, userId, 'account_deactivated', 'access');
       } catch (blacklistError) {
         // Continuar aunque falle el blacklist - ya estamos rechazando el request
-        console.warn('Error agregando token a blacklist:', blacklistError);
+
       }
-      
+
       return res.status(403).json({
         success: false,
         message: 'Tu cuenta ha sido desactivada por un administrador. Por favor, contacta al soporte si crees que esto es un error.'
@@ -121,14 +121,14 @@ const requireRole = (roles) => {
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return next();
     }
 
     const token = authHeader.substring(7);
     const { data: { user }, error } = await supabase.auth.getUser(token);
-    
+
     if (!error && user) {
       const { data: userData } = await supabaseAdmin
         .from('users')

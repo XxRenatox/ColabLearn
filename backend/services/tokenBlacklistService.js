@@ -16,7 +16,7 @@ class TokenBlacklistService {
     try {
       const parts = token.split('.');
       if (parts.length !== 3) return null;
-      
+
       const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
       return payload.exp ? new Date(payload.exp * 1000) : null;
     } catch (error) {
@@ -79,18 +79,18 @@ class TokenBlacklistService {
 
       // No es un error si no hay tokens previos
       if (fetchError && fetchError.code !== 'PGRST116') {
-        console.warn('Error obteniendo tokens del usuario:', fetchError);
+
       }
 
       // Retornar éxito - el middleware verificará is_active en cada request
       // Los tokens no conocidos serán rechazados por la verificación de is_active
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: 'Tokens invalidos. El middleware verificará is_active en cada request.',
         tokensFound: existingTokens?.length || 0
       };
     } catch (error) {
-      console.error('Error en blacklistAllUserTokens:', error);
+
       return { success: false, error: error.message };
     }
   }
@@ -117,12 +117,12 @@ class TokenBlacklistService {
         }]);
 
       if (error && error.code !== '23505') { // Ignorar duplicados
-        console.warn('Error agregando entrada de desactivación:', error);
+
       }
 
       return { success: true };
     } catch (error) {
-      console.error('Error en invalidateUserOnDeactivation:', error);
+
       return { success: false, error: error.message };
     }
   }

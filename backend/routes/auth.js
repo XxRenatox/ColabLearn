@@ -3,12 +3,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { supabase, supabaseAdmin } = require('../config/database');
-const { 
-  asyncHandler, 
-  AppError, 
+const {
+  asyncHandler,
+  AppError,
   createValidationError,
   createNotFoundError,
-  createAuthError 
+  createAuthError
 } = require('../middleware/errorHandler');
 const RefreshTokenService = require('../services/refreshTokenService');
 const TokenBlacklistService = require('../services/tokenBlacklistService');
@@ -59,36 +59,30 @@ router.post('/register', registerValidation, asyncHandler(async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.error('[REGISTER] Error de validación:', errors.array());
       throw createValidationError('Datos de registro inválidos', errors.array());
     }
 
     const { email, password, name, avatar } = req.body;
-    console.log('[REGISTER] Intentando registrar usuario:', { email, name });
 
     // Normalizar email antes de verificar
     const normalizedEmail = email.toLowerCase().trim();
 
     // Verificar si el usuario ya existe en nuestra tabla users
-    console.log('[REGISTER] Verificando si el usuario existe...');
     const { data: existingUser, error: fetchUserError } = await supabaseAdmin
       .from('users')
       .select('id, email')
       .eq('email', normalizedEmail)
       .maybeSingle();
-    
+
     if (fetchUserError) {
-      console.error('[REGISTER] Error verificando usuarios existentes:', fetchUserError);
       throw new AppError('Error verificando usuarios existentes: ' + fetchUserError.message, 500);
     }
-    
+
     if (existingUser) {
-      console.log('[REGISTER] Usuario ya existe');
       throw new AppError('El usuario ya existe con este email', 409);
     }
 
     // Crear usuario en Supabase Auth con email normalizado
-    console.log('[REGISTER] Creando usuario en Supabase Auth...');
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: normalizedEmail,
       password,
@@ -100,32 +94,28 @@ router.post('/register', registerValidation, asyncHandler(async (req, res) => {
     });
 
     if (authError || !authData?.user) {
-      console.error('[REGISTER] Error creando usuario en Auth:', authError);
       throw new AppError('Error creando usuario: ' + (authError?.message || 'Sin detalles'), 400);
     }
 
     const userId = authData.user.id;
-    console.log('[REGISTER] Usuario creado en Auth. ID:', userId);
 
-  // Asegurar que los metadatos se sincronicen en Supabase Auth
-  try {
-    await supabaseAdmin.auth.admin.updateUserById(userId, {
-      user_metadata: {
-        name: name.trim(),
-        avatar: avatar || null
-      }
-    });
-  } catch (metadataError) {
-    // No interrumpir el flujo si la sincronización de metadatos falla
-  }
+    // Asegurar que los metadatos se sincronicen en Supabase Auth
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          name: name.trim(),
+          avatar: avatar || null
+        }
+      });
+    } catch (metadataError) {
+      // No interrumpir el flujo si la sincronización de metadatos falla
+    }
 
     // Hash de la contraseña para almacenar en nuestra tabla
-    console.log('[REGISTER] Generando hash de contraseña...');
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Crear perfil de usuario en nuestra tabla
-    console.log('[REGISTER] Creando perfil en tabla users...');
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .insert([{
@@ -149,31 +139,25 @@ router.post('/register', registerValidation, asyncHandler(async (req, res) => {
       .single();
 
     if (userError) {
-      console.error('[REGISTER] Error creando perfil en users:', userError);
       // Si falla la creación del perfil, eliminar usuario de Auth
       try {
         await supabaseAdmin.auth.admin.deleteUser(userId);
       } catch (deleteError) {
-        console.error('[REGISTER] Error eliminando usuario de Auth tras fallo en creación de perfil:', deleteError);
       }
       throw new AppError('Error creando perfil de usuario: ' + userError.message + (userError.details ? ' - ' + userError.details : ''), 500);
     }
 
     if (!userData) {
-      console.error('[REGISTER] No se retornó userData después del insert');
       // Si no se retornó el usuario, intentar eliminarlo de Auth
       try {
         await supabaseAdmin.auth.admin.deleteUser(userId);
       } catch (deleteError) {
-        console.error('[REGISTER] Error eliminando usuario de Auth:', deleteError);
       }
       throw new AppError('Error: no se pudo crear el perfil de usuario', 500);
     }
-    
-    console.log('[REGISTER] Perfil creado exitosamente. User ID:', userData.id);
+
 
     // Obtener sesión de Supabase para devolverla al frontend
-    console.log('[REGISTER] Intentando obtener sesión de Supabase...');
     let supabaseSession = null;
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
@@ -183,118 +167,105 @@ router.post('/register', registerValidation, asyncHandler(async (req, res) => {
 
       if (!sessionError && sessionData?.session) {
         supabaseSession = sessionData.session;
-        console.log('[REGISTER] Sesión de Supabase obtenida');
       } else if (sessionError) {
-        console.warn('[REGISTER] No se pudo obtener sesión de Supabase:', sessionError.message);
       }
     } catch (sessionException) {
-      console.warn('[REGISTER] Excepción al obtener sesión de Supabase:', sessionException.message);
       // No interrumpir el flujo si no se puede obtener la sesión de Supabase
     }
 
-  // Desbloquear logro de bienvenida (si existe)
-  try {
-    // Intentar encontrar un logro de bienvenida o primer paso
-    const { data: welcomeAchievement } = await supabaseAdmin
-      .from('achievements')
-      .select('id, xp_reward')
-      .or('name.ilike.%bienvenida%,name.ilike.%primer paso%')
-      .limit(1)
-      .maybeSingle();
+    // Desbloquear logro de bienvenida (si existe)
+    try {
+      // Intentar encontrar un logro de bienvenida o primer paso
+      const { data: welcomeAchievement } = await supabaseAdmin
+        .from('achievements')
+        .select('id, xp_reward')
+        .or('name.ilike.%bienvenida%,name.ilike.%primer paso%')
+        .limit(1)
+        .maybeSingle();
 
-    if (welcomeAchievement) {
-      await supabaseAdmin
-        .from('user_achievements')
-        .insert([{
-          user_id: userId,
-          achievement_id: welcomeAchievement.id,
-          unlocked_at: new Date().toISOString(),
-          progress: { completed: true }
-        }]);
-      
-      // Sumar los puntos de experiencia del logro (si existe la función RPC)
-      if (welcomeAchievement.xp_reward) {
-        try {
-          await supabaseAdmin.rpc('increment_user_xp', {
+      if (welcomeAchievement) {
+        await supabaseAdmin
+          .from('user_achievements')
+          .insert([{
             user_id: userId,
-            xp_amount: welcomeAchievement.xp_reward || 10
-          });
-        } catch (rpcError) {
-          // RPC increment_user_xp no disponible, actualizar manualmente
+            achievement_id: welcomeAchievement.id,
+            unlocked_at: new Date().toISOString(),
+            progress: { completed: true }
+          }]);
+
+        // Sumar los puntos de experiencia del logro (si existe la función RPC)
+        if (welcomeAchievement.xp_reward) {
           try {
-            // Obtener XP actual
-            const { data: currentUser } = await supabaseAdmin
-              .from('users')
-              .select('xp')
-              .eq('id', userId)
-              .single();
-            
-            if (currentUser) {
-              const newXp = (currentUser.xp || 0) + (welcomeAchievement.xp_reward || 10);
-              await supabaseAdmin
+            await supabaseAdmin.rpc('increment_user_xp', {
+              user_id: userId,
+              xp_amount: welcomeAchievement.xp_reward || 10
+            });
+          } catch (rpcError) {
+            // RPC increment_user_xp no disponible, actualizar manualmente
+            try {
+              // Obtener XP actual
+              const { data: currentUser } = await supabaseAdmin
                 .from('users')
-                .update({ xp: newXp })
-                .eq('id', userId);
+                .select('xp')
+                .eq('id', userId)
+                .single();
+
+              if (currentUser) {
+                const newXp = (currentUser.xp || 0) + (welcomeAchievement.xp_reward || 10);
+                await supabaseAdmin
+                  .from('users')
+                  .update({ xp: newXp })
+                  .eq('id', userId);
+              }
+            } catch (updateError) {
+              // Ignorar si falla la actualización manual
             }
-          } catch (updateError) {
-            // Ignorar si falla la actualización manual
-            console.error('Error actualizando XP manualmente:', updateError);
           }
         }
       }
+    } catch (error) {
+      // No lanzamos error para no interrumpir el flujo de registro
     }
-  } catch (error) {
-    // No lanzamos error para no interrumpir el flujo de registro
-    console.error('Error desbloqueando logro de bienvenida:', error);
-  }
 
     // Verificar que JWT_SECRET esté definido
-    console.log('[REGISTER] Verificando JWT_SECRET...');
     if (!process.env.JWT_SECRET) {
-      console.error('[REGISTER] JWT_SECRET no está configurado');
       // Si falla, intentar eliminar el usuario creado
       try {
         await supabaseAdmin.auth.admin.deleteUser(userId);
         await supabaseAdmin.from('users').delete().eq('id', userId);
       } catch (cleanupError) {
-        console.error('[REGISTER] Error limpiando usuario tras fallo en JWT_SECRET:', cleanupError);
       }
       throw new AppError('JWT_SECRET no está configurado en las variables de entorno', 500);
     }
 
     // Generar access token JWT (corta duración: 1 hora)
-    console.log('[REGISTER] Generando access token...');
     let accessToken;
     try {
       accessToken = jwt.sign(
-        { 
-          userId: userData.id, 
+        {
+          userId: userData.id,
           email: userData.email,
           role: userData.role || 'student' // Usar 'student' como fallback si role es undefined
         },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
       );
-      console.log('[REGISTER] Access token generado exitosamente');
     } catch (jwtError) {
-      console.error('[REGISTER] Error generando access token:', jwtError);
       // Si falla, intentar eliminar el usuario creado
       try {
         await supabaseAdmin.auth.admin.deleteUser(userId);
         await supabaseAdmin.from('users').delete().eq('id', userId);
       } catch (cleanupError) {
-        console.error('[REGISTER] Error limpiando usuario tras fallo en JWT:', cleanupError);
       }
       throw new AppError(`Error generando access token: ${jwtError.message}`, 500);
     }
 
     // Generar refresh token
-    console.log('[REGISTER] Generando refresh token...');
     const deviceInfo = {
       userAgent: req.headers['user-agent'] || '',
       platform: req.headers['sec-ch-ua-platform'] || 'unknown'
     };
-    
+
     let refreshTokenData;
     try {
       refreshTokenData = await RefreshTokenService.createRefreshToken(
@@ -303,9 +274,7 @@ router.post('/register', registerValidation, asyncHandler(async (req, res) => {
         req.ip || req.connection.remoteAddress,
         req.headers['user-agent']
       );
-      console.log('[REGISTER] Refresh token generado exitosamente');
     } catch (refreshTokenError) {
-      console.error('[REGISTER] Error creando refresh token:', refreshTokenError);
       // Si falla la creación del refresh token, continuar sin él
       // El usuario podrá usar solo el access token
       refreshTokenData = {
@@ -315,7 +284,6 @@ router.post('/register', registerValidation, asyncHandler(async (req, res) => {
       };
     }
 
-    console.log('[REGISTER] Registro completado exitosamente para:', userData.email);
     res.status(201).json({
       success: true,
       message: 'Usuario registrado exitosamente',
@@ -339,8 +307,6 @@ router.post('/register', registerValidation, asyncHandler(async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[REGISTER] Error completo en registro:', error);
-    console.error('[REGISTER] Stack:', error.stack);
     throw error; // Re-lanzar para que asyncHandler lo maneje
   }
 }));
@@ -385,13 +351,20 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
       .eq('email', normalizedEmail)
       .maybeSingle();
 
-    if (fallbackError || !fallbackProfile?.password_hash) {
-      throw createAuthError('Credenciales inválidas');
+    if (fallbackError || !fallbackProfile) {
+      // Usuario no existe en la base de datos
+      throw createAuthError('No existe una cuenta con este correo electrónico. Por favor, verifica el correo o regístrate.');
+    }
+
+    if (!fallbackProfile.password_hash) {
+      // Usuario existe pero no tiene contraseña (caso raro)
+      throw createAuthError('Error en la configuración de tu cuenta. Por favor, contacta al soporte.');
     }
 
     const matches = await bcrypt.compare(password, fallbackProfile.password_hash);
     if (!matches) {
-      throw createAuthError('Credenciales inválidas');
+      // Contraseña incorrecta
+      throw createAuthError('La contraseña es incorrecta. Por favor, verifica tu contraseña e intenta nuevamente.');
     }
 
     // Intentar sincronizar con Supabase Auth (actualizar contraseña para usuario existente)
@@ -440,16 +413,16 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
   const userId = supabaseUser.id;
 
   if (!userData) {
-  const { data: existingProfile, error: profileError } = await supabaseAdmin
-    .from('users')
-    .select(`
+    const { data: existingProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select(`
       id, email, name, avatar, university, career, semester,
       level, xp, streak, study_hours, role, is_active,
       preferences, total_sessions, total_groups,
       password_hash, email_verified
     `)
-    .eq('id', userId)
-    .maybeSingle();
+      .eq('id', userId)
+      .maybeSingle();
 
     if (profileError) {
       throw new AppError('Error obteniendo perfil de usuario', 500);
@@ -564,16 +537,15 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
   let accessToken;
   try {
     accessToken = jwt.sign(
-      { 
-        userId: userData.id, 
+      {
+        userId: userData.id,
         email: userData.email,
-        role: userData.role 
+        role: userData.role
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
     );
   } catch (jwtError) {
-    console.error('Error generando access token:', jwtError);
     throw new AppError(`Error generando access token: ${jwtError.message}`, 500);
   }
 
@@ -582,7 +554,7 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
     userAgent: req.headers['user-agent'] || '',
     platform: req.headers['sec-ch-ua-platform'] || 'unknown'
   };
-  
+
   // Generar refresh token (funciona sin tablas usando JWT)
   let refreshTokenData;
   try {
@@ -593,7 +565,6 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
       req.headers['user-agent']
     );
   } catch (refreshTokenError) {
-    console.error('Error creando refresh token:', refreshTokenError);
     // Si falla la creación del refresh token, continuar sin él
     // El usuario podrá usar solo el access token
     refreshTokenData = {
@@ -643,19 +614,19 @@ router.post('/login', loginValidation, asyncHandler(async (req, res) => {
 router.post('/logout', asyncHandler(async (req, res) => {
   const authHeader = req.header('Authorization');
   const { refreshToken } = req.body;
-  
+
   let userId = null;
-  
+
   // Si hay token, obtener el userId y blacklistear el token
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       const token = authHeader.substring(7);
-      
+
       // Intentar decodificar token (puede estar expirado)
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         userId = decoded.userId || decoded.sub;
-        
+
         // Blacklistear el access token
         await TokenBlacklistService.blacklistToken(token, userId, 'logout', 'access');
       } catch (jwtError) {
@@ -672,7 +643,6 @@ router.post('/logout', asyncHandler(async (req, res) => {
       }
     } catch (error) {
       // Continuar con el logout aunque falle el blacklist
-      console.warn('Error durante logout:', error.message);
     }
   }
 
@@ -698,7 +668,7 @@ router.post('/logout', asyncHandler(async (req, res) => {
       // Continuar aunque falle
     }
   }
-  
+
   // Cerrar sesión en Supabase
   try {
     await supabase.auth.signOut();
@@ -724,7 +694,7 @@ router.post('/refresh', asyncHandler(async (req, res) => {
 
   // Verificar refresh token
   const tokenData = await RefreshTokenService.verifyRefreshToken(refreshToken);
-  
+
   if (!tokenData) {
     throw createAuthError('Refresh token inválido o expirado');
   }
@@ -738,10 +708,10 @@ router.post('/refresh', asyncHandler(async (req, res) => {
 
   // Generar nuevo access token
   const accessToken = jwt.sign(
-    { 
-      userId: user.id, 
+    {
+      userId: user.id,
       email: user.email,
-      role: user.role 
+      role: user.role
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
@@ -752,7 +722,7 @@ router.post('/refresh', asyncHandler(async (req, res) => {
     userAgent: req.headers['user-agent'] || '',
     platform: req.headers['sec-ch-ua-platform'] || 'unknown'
   };
-  
+
   let newRefreshTokenData;
   try {
     newRefreshTokenData = await RefreshTokenService.createRefreshToken(
@@ -762,7 +732,6 @@ router.post('/refresh', asyncHandler(async (req, res) => {
       req.headers['user-agent']
     );
   } catch (createError) {
-    console.error('Error creando nuevo refresh token:', createError);
     throw new AppError('Error generando nuevo refresh token', 500);
   }
 
@@ -845,7 +814,7 @@ router.post('/reset-password', [
 
   await supabase
     .from('users')
-    .update({ 
+    .update({
       password_hash: hashedPassword,
       reset_password_token: null,
       reset_password_expires: null
@@ -863,18 +832,18 @@ router.post('/reset-password', [
 // @access  Private (pero manejado aquí para conveniencia)
 router.get('/me', asyncHandler(async (req, res) => {
   const authHeader = req.header('Authorization');
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw createAuthError('Token de acceso requerido');
   }
 
   const token = authHeader.substring(7);
-  
+
   // Verificar token JWT primero
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.userId || decoded.sub;
-    
+
     if (!userId) {
       throw createAuthError('Token inválido');
     }
@@ -904,33 +873,33 @@ router.get('/me', asyncHandler(async (req, res) => {
   } catch (jwtError) {
     // Si el JWT falla, intentar con Supabase Auth como fallback
     try {
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  
-  if (error || !user) {
-    throw createAuthError('Token inválido');
-  }
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+
+      if (error || !user) {
+        throw createAuthError('Token inválido');
+      }
 
       const { data: userData, error: userError } = await supabaseAdmin
-    .from('users')
-    .select(`
+        .from('users')
+        .select(`
       id, email, name, avatar, university, career, semester,
       level, xp, streak, study_hours, role, is_active,
       preferences, total_sessions, total_groups, last_active,
       created_at
     `)
-    .eq('id', user.id)
-    .single();
+        .eq('id', user.id)
+        .single();
 
       if (userError || !userData) {
-    throw createNotFoundError('Usuario no encontrado');
-  }
+        throw createNotFoundError('Usuario no encontrado');
+      }
 
-  res.json({
-    success: true,
-    data: {
-      user: userData
-    }
-  });
+      res.json({
+        success: true,
+        data: {
+          user: userData
+        }
+      });
     } catch (authError) {
       throw createAuthError('Token inválido');
     }

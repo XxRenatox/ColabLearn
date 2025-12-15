@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { 
-    BookOpen, 
-    Users, 
-    Trophy,
-    Calendar,
-    Bell,
-    Search,
-    User,
-    Home,
-    BarChart3,
-    GraduationCap,
-    CheckCircle,
-    Menu,
-    Flame,
-    Clock,
-    FileText,
-    MessageSquare,
-    ShieldCheck
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  BookOpen,
+  Users,
+  Trophy,
+  Calendar,
+  Bell,
+  Search,
+  User,
+  Home,
+  BarChart3,
+  GraduationCap,
+  CheckCircle,
+  Menu,
+  Flame,
+  Clock,
+  FileText,
+  MessageSquare,
+  ShieldCheck
 } from 'lucide-react';
 import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
@@ -34,24 +34,26 @@ import ResourcesSection from '../components/ui/dashboard/sections/ResourcesSecti
 import ForumsSection from '../components/ui/dashboard/sections/ForumsSection';
 import UserProfile from '../components/ui/dashboard/sections/UserProfile';
 import ActiveSessionSection from '../components/ui/dashboard/sessions/ActiveSessionSection';
-import GroupDetailSection from '../components/ui/dashboard/shared/GroupDetailSection'; 
+import GroupDetailSection from '../components/ui/dashboard/shared/GroupDetailSection';
 import FriendlyErrorBoundary from '../components/ui/FriendlyErrorBoundary';
 import { Sidebar } from '../components/layout/Sidebar';
 import { getAuthToken } from '../services/tokenManager';
+import { useToast } from '../components/ui/Toast';
 
 export default function ColabLearnUserPanel() {
   const { state } = useLocation();
   const { id } = useParams();
   const navigate = useNavigate();
-  
+  const { showToast } = useToast();
+
   // Usar el contexto global
-  const { 
-    user, 
-    isAuthenticated, 
-    groups, 
-    sessions, 
-    notifications, 
-    achievements, 
+  const {
+    user,
+    isAuthenticated,
+    groups,
+    sessions,
+    notifications,
+    achievements,
     userAchievements,
     loading,
     errors,
@@ -65,6 +67,29 @@ export default function ColabLearnUserPanel() {
   const [activeSession, setActiveSession] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedGroupId = searchParams.get('group');
+  const location = useLocation();
+
+  // Ref to prevent double loading
+  const hasLoadedData = useRef(false);
+
+  // Sincronizar tab con URL
+  useEffect(() => {
+    const path = location.pathname.split('/')[1];
+    if (path) {
+      if (path === 'sessions') {
+        setActiveTab('study-sessions');
+      } else {
+        // Verificar si el path corresponde a un tab válido (simple check)
+        // O simplemente setearlo y dejar que el switch maneje el default
+        // Pero el switch tiene default <DefaultSection>, así que si el path es "user/panel" podría fallar?
+        // App.jsx usa rutas exactas como /dashboard, /groups.
+        // Si el path es 'user', ignora.
+        if (['dashboard', 'groups', 'calendar', 'achievements', 'notifications', 'profile', 'forums', 'resources'].includes(path)) {
+          setActiveTab(path);
+        }
+      }
+    }
+  }, [location.pathname]);
 
   // Verificar autenticación
   useEffect(() => {
@@ -73,12 +98,46 @@ export default function ColabLearnUserPanel() {
     }
   }, [isAuthenticated, navigate]);
 
+  // Auto-activar sesión en curso para organizador o participante confirmado
+  useEffect(() => {
+    // Si ya estamos viendo una sesión, no hacer nada
+    if (activeSession || !sessions || !user) return;
+
+    const runningSession = sessions.find(s =>
+      s.status === 'in_progress' &&
+      (s.organizer_id === user.id || s.attendance_status === 'confirmed' || s.my_attendance_status === 'confirmed')
+    );
+
+    if (runningSession) {
+      const token = getAuthToken();
+      if (!token) return;
+
+      showToast('info', 'Sesión en curso', `Ingresando a "${runningSession.title}"`);
+
+      fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/sessions/${runningSession.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+        .then(res => res.ok ? res.json() : Promise.reject(res))
+        .then(data => {
+          if (data && data.success) {
+            setActiveSession(data.data.session);
+            setActiveTab('active-session');
+          }
+        })
+
+    }
+  }, [sessions, activeSession, user]);
+
   // Cargar datos si no están disponibles
   useEffect(() => {
-    if (isAuthenticated && user && (!groups.length || !sessions.length)) {
-      loadUserData();
+    if (isAuthenticated && user && !hasLoadedData.current) {
+      if (!groups.length || !sessions.length) {
+        hasLoadedData.current = true;
+        loadUserData();
+      }
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, groups.length, sessions.length, loadUserData]);
 
   // Procesar datos del backend
   const upcomingSessions = sessions
@@ -112,11 +171,11 @@ export default function ColabLearnUserPanel() {
         minute: '2-digit'
       }),
       icon: notification.type === 'achievement_unlock' ? Trophy :
-            notification.type === 'group_invite' ? Users :
-            notification.type === 'session_reminder' ? Clock : Bell,
+        notification.type === 'group_invite' ? Users :
+          notification.type === 'session_reminder' ? Clock : Bell,
       color: notification.type === 'achievement_unlock' ? 'text-yellow-500' :
-             notification.type === 'group_invite' ? 'text-blue-500' :
-             notification.type === 'session_reminder' ? 'text-green-500' : 'text-gray-500'
+        notification.type === 'group_invite' ? 'text-blue-500' :
+          notification.type === 'session_reminder' ? 'text-green-500' : 'text-gray-500'
     }));
 
   // Combinar logros disponibles con los del usuario
@@ -151,13 +210,13 @@ export default function ColabLearnUserPanel() {
     { id: 'profile', label: 'Perfil', icon: User },
     ...(user?.role === 'admin'
       ? [
-          {
-            id: 'admin-panel-link',
-            label: 'Panel Administrador',
-            icon: ShieldCheck,
-            onClick: () => navigate('/admin'),
-          },
-        ]
+        {
+          id: 'admin-panel-link',
+          label: 'Panel Administrador',
+          icon: ShieldCheck,
+          onClick: () => navigate('/admin'),
+        },
+      ]
       : []),
   ];
 
@@ -168,193 +227,229 @@ export default function ColabLearnUserPanel() {
   const selectedGroup = groups.find(g => g.id === selectedGroupId);
 
   const renderContent = () => {
-  if (loading.user || loading.groups || loading.sessions) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+    if (loading.user || loading.groups || loading.sessions) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      );
+    }
+
+    // Back button component
+    const BackButton = ({ onClick, text = 'Volver a mis grupos' }) => (
+      <button
+        onClick={onClick}
+        className="flex items-center text-blue-600 hover:text-blue-800 mb-4 transition-colors"
+      >
+        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        {text}
+      </button>
     );
-  }
 
-  // Back button component
-  const BackButton = ({ onClick, text = 'Volver a mis grupos' }) => (
-    <button 
-      onClick={onClick}
-      className="flex items-center text-blue-600 hover:text-blue-800 mb-4 transition-colors"
-    >
-      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-      </svg>
-      {text}
-    </button>
-  );
-
-  // Si tenemos un groupId en la URL, mostrar detalle del grupo
-  if (selectedGroupId) {
-    // Buscar el grupo por ID dentro de los grupos cargados
-    const selectedGroup = groups.find(g => g.id === selectedGroupId);
+    // Si tenemos un groupId en la URL, mostrar detalle del grupo
+    if (selectedGroupId) {
+      // Buscar el grupo por ID dentro de los grupos cargados
+      const selectedGroup = groups.find(g => g.id === selectedGroupId);
 
 
-    // Si el grupo fue encontrado correctamente
-    return (
-      <div className="space-y-6">
-        <BackButton onClick={handleBackToGroups} text="XD" />
-        <GroupDetailSection group={selectedGroup} />
-      </div>
-    );
-  }
-
-  switch (activeTab) {
-    case 'dashboard':
+      // Si el grupo fue encontrado correctamente
       return (
-        <Dashboard 
-          user={user}
-          sessions={sessions}
-          groups={groups}
-          achievements={processedAchievements}
-          upcomingSessions={upcomingSessions}
-          recentActivity={recentActivity}
-          loading={loading}
-          activeSession={activeSession}
-          onLeaveSession={() => {
-            setActiveSession(null);
-            setActiveTab('dashboard');
-          }}
-        />
+        <div className="space-y-6">
+          <BackButton onClick={handleBackToGroups} text="XD" />
+          <GroupDetailSection group={selectedGroup} />
+        </div>
       );
+    }
 
-    case 'achievements':
-      return <Achievements achievements={processedAchievements} loading={loading.achievements} />;
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <Dashboard
+            user={user}
+            sessions={sessions}
+            groups={groups}
+            achievements={processedAchievements}
+            upcomingSessions={upcomingSessions}
+            recentActivity={recentActivity}
+            loading={loading}
+            activeSession={activeSession}
+            onLeaveSession={() => {
+              setActiveSession(null);
+              setActiveTab('dashboard');
+            }}
+          />
+        );
 
-    case 'calendar':
-      return (
-        <CalendarSection
-          user={user}
-          sessions={sessions}
-          groups={groups}
-          onJoinSession={async (session) => {
-            try {
-              await fetch(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/sessions/${session.id}/join`,
-                { method: 'POST', headers: { Authorization: `Bearer ${getAuthToken()}` } }
-              );
-              const response = await fetch(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/sessions/${session.id}`,
-                { headers: { Authorization: `Bearer ${getAuthToken()}` } }
-              );
-              if (response.ok) {
-                const data = await response.json();
-                setActiveSession(data.data.session);
-                setActiveTab('active-session');
-              } else {
-                setActiveSession(session);
-                setActiveTab('active-session');
+      case 'achievements':
+        return <Achievements achievements={processedAchievements} loading={loading.achievements} />;
+
+      case 'calendar':
+        return (
+          <CalendarSection
+            user={user}
+            sessions={sessions}
+            groups={groups}
+            onJoinSession={async (session) => {
+              try {
+                const resJoin = await fetch(
+                  `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/sessions/${session.id}/join`,
+                  { method: 'POST', headers: { Authorization: `Bearer ${getAuthToken()}` } }
+                );
+
+                if (!resJoin.ok) {
+                  const errorData = await resJoin.json();
+                  const msg = errorData.message || errorData.error || '';
+
+                  // Permitir continuar si es el organizador o ya está unido
+                  const isBenignError =
+                    msg.toLowerCase().includes('organizador') ||
+                    msg.toLowerCase().includes('ya estás') ||
+                    msg.toLowerCase().includes('already');
+
+                  if (!isBenignError) {
+                    showToast('error', 'No pudiste unirte', msg || 'Intenta nuevamente');
+                    return;
+                  }
+                }
+
+                const response = await fetch(
+                  `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/sessions/${session.id}`,
+                  { headers: { Authorization: `Bearer ${getAuthToken()}` } }
+                );
+
+                if (response.ok) {
+                  const data = await response.json();
+                  setActiveSession(data.data.session);
+                  setActiveTab('active-session');
+                } else {
+                  showToast('error', 'Error', 'No se pudo cargar la información de la sesión');
+                }
+              } catch (error) {
+
+                showToast('error', 'Error de conexión', 'Verifique su conexión');
               }
-            } catch (error) {
-              setActiveSession(session);
-              setActiveTab('active-session');
-            }
-          }}
-        />
-      );
+            }}
+          />
+        );
 
-    case 'find-students':
-      return <ExplorerSection user={user} groups={groups} />;
+      case 'find-students':
+        return <ExplorerSection user={user} groups={groups} />;
 
-    case 'groups':
-      return <Groups user={user} studyGroups={groups} loading={loading.groups} />;
+      case 'groups':
+        return <Groups user={user} studyGroups={groups} loading={loading.groups} />;
 
-    case 'forums':
-      return <ForumsSection user={user} groups={groups} />;
+      case 'forums':
+        return <ForumsSection user={user} groups={groups} />;
 
-    case 'resources':
-      return <ResourcesSection user={user} token={getAuthToken()} />;
+      case 'resources':
+        return <ResourcesSection user={user} token={getAuthToken()} />;
 
-    case 'study-sessions':
-      return (
-        <StudySessionsPanel
-          user={user}
-          sessions={sessions}
-          groups={groups}
-          onSessionsUpdated={loadSessions}
-          onJoinSession={async (session) => {
-            try {
-              await fetch(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/sessions/${session.id}/join`,
-                { method: 'POST', headers: { Authorization: `Bearer ${getAuthToken()}` } }
-              );
-              const response = await fetch(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/sessions/${session.id}`,
-                { headers: { Authorization: `Bearer ${getAuthToken()}` } }
-              );
-              if (response.ok) {
-                const data = await response.json();
-                setActiveSession(data.data.session);
-                setActiveTab('active-session');
-              } else {
-                setActiveSession(session);
-                setActiveTab('active-session');
+      case 'study-sessions':
+        return (
+          <StudySessionsPanel
+            user={user}
+            sessions={sessions}
+            groups={groups}
+            onSessionsUpdated={loadSessions}
+            onJoinSession={async (session) => {
+              try {
+                const resJoin = await fetch(
+                  `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/sessions/${session.id}/join`,
+                  { method: 'POST', headers: { Authorization: `Bearer ${getAuthToken()}` } }
+                );
+
+                if (!resJoin.ok) {
+                  const errorData = await resJoin.json();
+                  const msg = errorData.message || errorData.error || '';
+
+                  // Permitir continuar si es el organizador o ya está unido
+                  const isBenignError =
+                    msg.toLowerCase().includes('organizador') ||
+                    msg.toLowerCase().includes('ya estás') ||
+                    msg.toLowerCase().includes('already');
+
+                  if (!isBenignError) {
+                    showToast('error', 'No pudiste unirte', msg || 'Intenta nuevamente');
+                    return;
+                  }
+                }
+
+                const response = await fetch(
+                  `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/sessions/${session.id}`,
+                  { headers: { Authorization: `Bearer ${getAuthToken()}` } }
+                );
+
+                if (response.ok) {
+                  const data = await response.json();
+                  setActiveSession(data.data.session);
+                  setActiveTab('active-session');
+                } else {
+                  showToast('error', 'Error', 'No se pudo cargar la información de la sesión');
+                }
+              } catch (error) {
+
+                showToast('error', 'Error de conexión', 'Verifique su conexión');
               }
-            } catch (error) {
-              setActiveSession(session);
-              setActiveTab('active-session');
-            }
-          }}
-        />
-      );
+            }}
+          />
+        );
 
-    case 'notifications':
-      return <NotificationsSection notifications={notifications} loading={loading.notifications} />;
+      case 'notifications':
+        return <NotificationsSection notifications={notifications} loading={loading.notifications} />;
 
-    case 'active-session':
-      return (
-        <ActiveSessionSection
-          session={activeSession}
-          user={user}
-          onLeaveSession={() => {
-            setActiveSession(null);
-            setActiveTab('dashboard');
-          }}
-        />
-      );
+      case 'active-session':
+        return (
+          <FriendlyErrorBoundary showDetails={true}>
+            <ActiveSessionSection
+              session={activeSession}
+              user={user}
+              onLeaveSession={() => {
+                setActiveSession(null);
+                setActiveTab('dashboard');
+              }}
+            />
+          </FriendlyErrorBoundary>
+        );
 
-    case 'profile':
-      return (
-        <UserProfile
-          user={user}
-          userAchievements={userAchievements}
-          achievements={achievements}
-          loading={loading}
-          groups={groups}
-          sessions={sessions}
-        />
-      );
+      case 'profile':
+        return (
+          <UserProfile
+            user={user}
+            userAchievements={userAchievements}
+            achievements={achievements}
+            loading={loading}
+            groups={groups}
+            sessions={sessions}
+          />
+        );
 
-    default:
-      return <DefaultSection />;
-  }
-};
+      default:
+        return <DefaultSection />;
+    }
+  };
 
   const activeItem = menuItems.find(item => item.id === activeTab);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar 
-        menuItems={menuItems} 
-        setSidebarOpen={setSidebarOpen} 
-        sidebarOpen={sidebarOpen} 
-        setActiveTab={setActiveTab} 
-        activeTab={activeTab} 
-        user={user} 
+      <Sidebar
+        menuItems={menuItems}
+        setSidebarOpen={setSidebarOpen}
+        sidebarOpen={sidebarOpen}
+        setActiveTab={setActiveTab}
+        activeTab={activeTab}
+        user={user}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <button 
-                onClick={() => setSidebarOpen(true)} 
-                className="lg:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors" 
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                 aria-label="Abrir menú"
               >
                 <Menu className="w-6 h-6" />
@@ -381,16 +476,16 @@ export default function ColabLearnUserPanel() {
             <div className="flex items-center space-x-2 sm:space-x-4">
               <div className="relative hidden sm:block">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input 
-                  type="text" 
-                  placeholder="Buscar..." 
-                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 lg:w-64" 
+                <input
+                  type="text"
+                  placeholder="Buscar..."
+                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 lg:w-64"
                 />
               </div>
               <button className="sm:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors">
                 <Search className="w-5 h-5" />
               </button>
-              <button 
+              <button
                 className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
                 onClick={() => setActiveTab('notifications')}
               >

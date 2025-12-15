@@ -156,7 +156,7 @@ async function deleteSeedAuthUsers() {
     }
 
     const seedUsers = data.users.filter(
-      (user) => user.email && user.email.toLowerCase().endsWith(`@${SEED_EMAIL_DOMAIN}`)
+      (user) => (user.email && user.email.toLowerCase().endsWith(`@${SEED_EMAIL_DOMAIN}`)) || user.email === 'test@example.com'
     );
 
     for (const user of seedUsers) {
@@ -207,7 +207,7 @@ async function resetTables() {
         console.log(`  Tabla limpiada: ${table}`);
       }
     } catch (err) {
-        console.error(`  Error limpiando ${table}: ${err.message}`);
+      console.error(`  Error limpiando ${table}: ${err.message}`);
     }
   }
 }
@@ -217,6 +217,50 @@ async function createUsers() {
   const passwordHash = await bcrypt.hash(SEED_USER_PASSWORD, 12);
   const usersPayload = [];
   const createdUsersMeta = [];
+
+  // Crear usuario de prueba fijo para Cypress
+  const testUserEmail = 'test@example.com';
+  const testUserPassword = 'Test123456!';
+  const testUserHash = await bcrypt.hash(testUserPassword, 12);
+
+  try {
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: testUserEmail,
+      password: testUserPassword,
+      email_confirm: true,
+      user_metadata: {
+        name: 'Test User',
+        avatar: null,
+        avatarStyle: 'adventurer',
+        university: 'Universidad de Prueba',
+        career: 'Ingeniería en Pruebas',
+      },
+    });
+
+    if (!authError && authData?.user) {
+      usersPayload.push({
+        id: authData.user.id,
+        email: testUserEmail,
+        password_hash: testUserHash,
+        name: 'Test User',
+        avatar: null,
+        university: 'Universidad de Prueba',
+        career: 'Ingeniería en Pruebas',
+        semester: '5°',
+        is_active: true,
+        level: 10,
+        xp: 500,
+        streak: 5,
+        study_hours: 100,
+        preferences: { bio: 'Usuario de prueba para E2E testing' }
+      });
+      console.log(`  ✅ Usuario de prueba creado: ${testUserEmail}`);
+    } else {
+      console.error('Error creando usuario de prueba:', authError);
+    }
+  } catch (error) {
+    console.error('Excepción creando usuario de prueba:', error);
+  }
 
   for (let i = 0; i < USERS_TO_CREATE; i++) {
     const firstName = randomItem(firstNames);
@@ -263,49 +307,49 @@ async function createUsers() {
         preferences: {
           // Bio y descripción personal
           bio: randomItem(bios),
-          
+
           // Objetivos de estudio
           goals: getRandomItems(goals, randomInt(2, 4)),
-          
+
           // Materias de interés
           subjects: getRandomItems(subjects, randomInt(2, 5)),
-          
+
           // Configuración de zona horaria
           timezone: randomItem(timezones),
-          
+
           // Días disponibles
           weekDays: getRandomItems(weekDaysOptions, randomInt(2, 5)),
-          
+
           // Tamaño de grupo preferido
           groupSize: randomItem(groupSizes),
-          
+
           // Horarios preferidos
           timeSlots: getRandomItems(timeSlotsOptions, randomInt(1, 3)),
-          
+
           // Nivel de ruido preferido
           noiseLevel: randomItem(noiseLevels),
-          
+
           // Estilos de aprendizaje
           studyStyle: getRandomItems(studyStyles, randomInt(1, 3)),
-          
+
           // Horarios de estudio (para compatibilidad con estructura antigua)
           studyTimes: getRandomItems(preferredTimes, randomInt(1, 2)),
-          
+
           // Rasgos de personalidad
           personality: getRandomItems(personalityTraits, randomInt(2, 4)),
-          
+
           // Lugares de estudio preferidos
           studyLocation: getRandomItems(studyLocations, randomInt(2, 4)),
-          
+
           // Frecuencia de estudio
           studyFrequency: randomItem(studyFrequencies),
-          
+
           // Duración de sesión
           sessionDuration: randomItem(sessionDurations),
-          
+
           // Estilo de comunicación
           communicationStyle: randomItem(communicationStyles),
-          
+
           // Notificaciones (mantener compatibilidad)
           notifications: {
             email: Math.random() > 0.2,
@@ -315,7 +359,7 @@ async function createUsers() {
         total_sessions: randomInt(2, 30),
         total_groups: randomInt(1, 8),
         is_active: Math.random() > 0.05,
-            email_verified: true,
+        email_verified: true,
         last_active: new Date(Date.now() - randomInt(0, 7) * 86400000).toISOString(),
       });
 
@@ -574,15 +618,15 @@ async function createGroupsAndMembers(users) {
         name,
         description: `Grupo de estudio enfocado en ${subject}.`,
         subject,
-            university: creator.university,
-            career: creator.career,
-            semester: creator.semester,
+        university: creator.university,
+        career: creator.career,
+        semester: creator.semester,
         color: randomItem(colors),
         max_members: randomInt(10, 40),
         is_private: Math.random() > 0.6,
         allow_invites: Math.random() > 0.3,
         require_approval: Math.random() > 0.7,
-            creator_id: creator.id,
+        creator_id: creator.id,
         total_sessions: randomInt(1, 10),
         total_hours: Number((Math.random() * 80).toFixed(1)),
         average_rating: Number((Math.random() * 5).toFixed(2)),
@@ -646,7 +690,7 @@ async function createSessions(groups, groupMembersMap) {
       // Asegurar que al menos 2 sesiones estén en 5 minutos
       let scheduled;
       const shouldBeSoon = soonSessionsCount < 2;
-      
+
       if (shouldBeSoon) {
         // Crear sesión en 5 minutos exactos desde ahora
         scheduled = new Date(fiveMinutesLater);
@@ -659,7 +703,7 @@ async function createSessions(groups, groupMembersMap) {
         const hoursOffset = randomInt(1, 6);
         scheduled = new Date(now.getTime() + daysOffset * 86400000 + hoursOffset * 3600000);
       }
-      
+
       sessionsPayload.push({
         title: `${group.subject} - Sesión ${i + 1}`,
         description: `Revisión de tópicos clave de ${group.subject}.`,
@@ -692,7 +736,7 @@ async function createSessions(groups, groupMembersMap) {
 
   console.log(`\n📝 Total de sesiones a crear: ${sessionsPayload.length}`);
   console.log(`⏰ Sesiones próximas (5 minutos): ${soonSessionsCount}`);
-  
+
   const { data: insertedSessions, error } = await supabaseAdmin.from('sessions').insert(sessionsPayload).select();
   if (error) {
     throw new Error(`No se pudieron crear las sesiones: ${error.message}`);
@@ -702,20 +746,20 @@ async function createSessions(groups, groupMembersMap) {
   const verificationTime = new Date();
   const fiveMinutesFromNow = verificationTime.getTime() + (5 * 60000);
   const tenMinutesFromNow = verificationTime.getTime() + (10 * 60000);
-  
+
   const soonSessions = insertedSessions.filter(session => {
     if (!session.scheduled_date) return false;
     const sessionDate = new Date(session.scheduled_date);
     if (isNaN(sessionDate.getTime())) return false;
-    
+
     const sessionTime = sessionDate.getTime();
     // Buscar sesiones entre ahora y 10 minutos en el futuro
     return sessionTime >= verificationTime.getTime() && sessionTime <= tenMinutesFromNow;
   });
-  
+
   console.log(`\n📅 Resumen de sesiones próximas (próximos 10 minutos): ${soonSessions.length}`);
   console.log(`⏰ Hora de verificación: ${verificationTime.toISOString()}`);
-  
+
   if (soonSessions.length > 0) {
     soonSessions.forEach((session, index) => {
       const sessionDate = new Date(session.scheduled_date);

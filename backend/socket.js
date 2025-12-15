@@ -24,6 +24,8 @@ const normalizeMessage = (message = {}) => {
     tempId: message.tempId || null,
     groupId,
     group_id: groupId,
+    sessionId: message.sessionId || message.session_id || null,
+    session_id: message.sessionId || message.session_id || null,
     content: message.content || message.message || '',
     status: message.status || 'sent',
     created_at: message.created_at || message.timestamp || new Date().toISOString(),
@@ -31,17 +33,17 @@ const normalizeMessage = (message = {}) => {
     sender_id: senderId,
     sender: sender
       ? {
-          id: sender.id || senderId,
-          name: sender.name || sender.full_name || 'Usuario',
-          avatar: sender.avatar || '👤',
-          email: sender.email || null,
-        }
+        id: sender.id || senderId,
+        name: sender.name || sender.full_name || 'Usuario',
+        avatar: sender.avatar || '👤',
+        email: sender.email || null,
+      }
       : {
-          id: senderId,
-          name: message.sender_name || 'Usuario',
-          avatar: message.sender_avatar || '👤',
-          email: message.sender_email || null,
-        },
+        id: senderId,
+        name: message.sender_name || 'Usuario',
+        avatar: message.sender_avatar || '👤',
+        email: message.sender_email || null,
+      },
   };
 };
 
@@ -132,7 +134,7 @@ const setupSocket = (server) => {
     // Unirse a la sala personal del usuario para recibir notificaciones
     if (socket.user?.id) {
       socket.join(`user:${socket.user.id}`);
-      console.log(`Usuario ${socket.user.id} conectado y unido a su sala personal`);
+
     }
 
     socket.on('joinGroup', async (groupId, callback) => {
@@ -142,7 +144,7 @@ const setupSocket = (server) => {
 
       try {
         const userRole = socket.user.role;
-        
+
         // Los administradores tienen acceso a todos los grupos
         if (userRole !== 'admin') {
           const { data: membership, error: membershipError } = await supabaseAdmin
@@ -212,6 +214,157 @@ const setupSocket = (server) => {
       }
     });
 
+    // --- SESSION CHAT HANDLERS ---
+    socket.on('joinSession', async (sessionId, callback) => {
+      if (!socket.user?.id) {
+        return callback?.({ success: false, error: 'No autenticado' });
+      }
+
+      try {
+        // Verificar acceso a la sesión (organizador o asistente)
+        const { data: session, error: sessionError } = await supabaseAdmin
+          .from('sessions')
+          .select('id, group_id, organizer_id')
+          .eq('id', sessionId)
+          .single();
+
+        if (sessionError || !session) {
+          return callback?.({ success: false, error: 'Sesión no encontrada' });
+        }
+
+        const isOrganizer = session.organizer_id === socket.user.id;
+        let hasAccess = isOrganizer;
+
+        if (!hasAccess) {
+          // Verificar attendance
+          const { data: attendance } = await supabaseAdmin
+            .from('session_attendance')
+            .select('status')
+            .eq('session_id', sessionId)
+            .eq('user_id', socket.user.id)
+            .maybeSingle();
+
+          // También dar acceso si es miembro del grupo (opcional, pero común)
+          if (!attendance) {
+            const { data: groupMember } = await supabaseAdmin
+              .from('group_members')
+              .select('status')
+              .eq('group_id', session.group_id)
+              .eq('user_id', socket.user.id)
+              .eq('status', 'active')
+              .maybeSingle();
+            if (groupMember) hasAccess = true;
+          } else {
+            hasAccess = true;
+          }
+        }
+
+        if (!hasAccess && socket.user.role !== 'admin') {
+          return callback?.({ success: false, error: 'No tienes acceso a esta sesión' });
+        }
+
+        socket.join(`session:${sessionId}`);
+
+        // Cargar mensajes de la sesión
+        // NOTA: Esto requiere la columna session_id en messages, que añadimos en la migración.
+        const { data: messages, error: messagesError } = await supabaseAdmin
+          .from('messages')
+          .select(`
+            id,
+            content,
+            status,
+            created_at,
+            updated_at,
+            group_id,
+            session_id,
+            sender_id,
+            sender:users!inner(id, name, avatar, email)
+          `)
+          .eq('session_id', sessionId)
+          .order('created_at', { ascending: true }) // Mensajes antiguos primero
+          .limit(100);
+
+        if (messagesError) {
+
+          // Si falla (ej: columna no existe), retornar vacío pero éxito en join
+          return callback?.({ success: true, messages: [] });
+        }
+
+        callback?.({
+          success: true,
+          messages: (messages || []).map((msg) =>
+            normalizeMessage({ ...msg, sessionId })
+          ),
+        });
+
+      } catch (error) {
+
+        callback?.({ success: false, error: 'Error al unirse a la sesión' });
+      }
+    });
+
+    socket.on('leaveSession', (sessionId) => {
+      socket.leave(`session:${sessionId}`);
+    });
+
+    socket.on('sendSessionMessage', async ({ sessionId, content, tempId }, callback) => {
+      if (!socket.user?.id) return callback?.({ success: false, error: 'No auth' });
+
+      try {
+        // Verificar existencia sesión para obtener group_id (necesario para FK constraints si existen)
+        const { data: session } = await supabaseAdmin
+          .from('sessions')
+          .select('id, group_id')
+          .eq('id', sessionId)
+          .single();
+
+        if (!session) return callback?.({ success: false, error: 'Sesión inválida' });
+
+        const tempMessage = normalizeMessage({
+          id: tempId || `temp-${Date.now()}`,
+          tempId,
+          content,
+          sessionId,
+          group_id: session.group_id, // Necesario si es NOT NULL
+          sender_id: socket.user.id,
+          status: 'sending',
+          created_at: new Date().toISOString(),
+          sender: { ...socket.user }
+        });
+
+        callback?.({ success: true, message: tempMessage, tempId });
+
+        // Persistir
+        const { data: message, error: insertError } = await supabaseAdmin
+          .from('messages')
+          .insert([{
+            content,
+            group_id: session.group_id, // FK requerida
+            session_id: sessionId,      // NUEVO
+            sender_id: socket.user.id,
+            status: 'sent'
+          }])
+          .select(`*, sender:users!inner(id, name, avatar)`)
+          .single();
+
+        if (insertError) {
+
+          socket.emit('messageError', { tempId, error: 'Error guardando mensaje' });
+          return;
+        }
+
+        const normalized = normalizeMessage({ ...message, tempId, sessionId });
+
+        // Emitir a la sala de sesión
+        io.to(`session:${sessionId}`).emit('newSessionMessage', normalized);
+
+      } catch (e) {
+
+        socket.emit('messageError', { tempId, error: 'Error servidor' });
+      }
+    });
+
+
     socket.on('leaveGroup', (groupId) => {
       if (!socket.user?.id) return;
 
@@ -234,7 +387,7 @@ const setupSocket = (server) => {
 
       try {
         const userRole = socket.user.role;
-        
+
         // Los administradores pueden enviar mensajes a todos los grupos
         if (userRole !== 'admin') {
           const { data: membership, error: membershipError } = await supabaseAdmin

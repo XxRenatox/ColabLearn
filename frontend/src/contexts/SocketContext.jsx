@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { io } from 'socket.io-client';
 import { useApp } from './AppContext';
 import { chatAPI } from '../services/api';
-import { getAuthToken, clearAuthToken} from '@/services/tokenManager';
+import { getAuthToken, clearAuthToken } from '@/services/tokenManager';
 
 const SocketContext = createContext(null);
 
@@ -41,6 +41,8 @@ const normalizeMessage = (message) => {
     tempId: message.tempId || null,
     groupId,
     group_id: groupId,
+    sessionId: message.sessionId || message.session_id || null,
+    session_id: message.sessionId || message.session_id || null,
     content: message.content || message.message || '',
     status: message.status || 'sent',
     created_at: message.created_at || message.timestamp || message.createdAt || new Date().toISOString(),
@@ -49,17 +51,17 @@ const normalizeMessage = (message) => {
     user_id: message.user_id || senderId,
     sender: sender
       ? {
-          id: sender.id || senderId,
-          name: sender.name || sender.full_name || 'Usuario',
-          avatar: sender.avatar || '👤',
-          email: sender.email || null,
-        }
+        id: sender.id || senderId,
+        name: sender.name || sender.full_name || 'Usuario',
+        avatar: sender.avatar || '👤',
+        email: sender.email || null,
+      }
       : {
-          id: senderId,
-          name: message.sender_name || 'Usuario',
-          avatar: message.sender_avatar || '👤',
-          email: message.sender_email || null,
-        },
+        id: senderId,
+        name: message.sender_name || 'Usuario',
+        avatar: message.sender_avatar || '👤',
+        email: message.sender_email || null,
+      },
   };
 };
 
@@ -78,10 +80,10 @@ export const SocketProvider = ({ children }) => {
   const joiningGroupsRef = useRef(new Set());
 
   const loadingGroupsRef = useRef(new Set());
-  
+
   const loadMessages = useCallback(async (groupId, params = {}) => {
     if (!groupId) return [];
-    
+
     // Evitar cargar mensajes múltiples veces para el mismo grupo
     if (loadingGroupsRef.current.has(groupId)) {
       return messagesRef.current[groupId] || [];
@@ -119,7 +121,7 @@ export const SocketProvider = ({ children }) => {
     } catch (err) {
       // No establecer error aquí, solo retornar array vacío
       // El socket puede devolver los mensajes
-      console.warn('Error cargando mensajes:', err);
+
       return [];
     } finally {
       setIsLoading(false);
@@ -175,7 +177,7 @@ export const SocketProvider = ({ children }) => {
 
       const groupToJoin = activeGroupRef.current;
       if (groupToJoin) {
-        socketInstance.emit('joinGroup', groupToJoin, () => {});
+        socketInstance.emit('joinGroup', groupToJoin, () => { });
       }
     };
 
@@ -203,10 +205,10 @@ export const SocketProvider = ({ children }) => {
     };
 
     const onNewMessage = async (message) => {
-      console.log('📨 Nuevo mensaje recibido:', message);
+
       const normalized = normalizeMessage(message);
       if (!normalized?.groupId) {
-        console.warn('⚠️ Mensaje sin groupId:', message);
+
         return;
       }
 
@@ -229,29 +231,29 @@ export const SocketProvider = ({ children }) => {
           (msg) =>
             (normalized.id && msg.id === normalized.id) ||
             (normalized.tempId && msg.tempId === normalized.tempId) ||
-            (normalized.id && msg.tempId && msg.content === normalized.content && 
-             ((msg.sender_id === normalized.sender_id) || (msg.sender?.id === normalized.sender_id)))
+            (normalized.id && msg.tempId && msg.content === normalized.content &&
+              ((msg.sender_id === normalized.sender_id) || (msg.sender?.id === normalized.sender_id)))
         );
 
         if (existingIndex !== -1) {
           // Actualizar mensaje existente (reemplazar completamente con el mensaje del servidor)
-          console.log('Mensaje ya existe, actualizando:', normalized.id || normalized.tempId);
+
           const updated = [...sanitized];
           // Usar el mensaje normalizado del servidor, que tiene el created_at correcto
-          updated[existingIndex] = { 
-            ...normalized, 
+          updated[existingIndex] = {
+            ...normalized,
             status: 'sent',
             // Preservar el tempId si existe para referencia
             tempId: updated[existingIndex].tempId || normalized.tempId
           };
-          
+
           // Ordenar por fecha después de actualizar
           updated.sort((a, b) => {
             const timeA = new Date(a.created_at || a.timestamp || 0).getTime();
             const timeB = new Date(b.created_at || b.timestamp || 0).getTime();
             return timeA - timeB;
           });
-          
+
           return {
             ...prev,
             [normalized.groupId]: updated,
@@ -259,9 +261,9 @@ export const SocketProvider = ({ children }) => {
         }
 
         // Agregar nuevo mensaje y ordenar por fecha
-        console.log('Agregando nuevo mensaje al grupo:', normalized.groupId, 'Total mensajes:', sanitized.length + 1);
+
         const updated = [...sanitized, normalized];
-        
+
         // Ordenar por fecha de creación (más antiguo primero)
         updated.sort((a, b) => {
           const timeA = new Date(a.created_at || a.timestamp || 0).getTime();
@@ -282,6 +284,41 @@ export const SocketProvider = ({ children }) => {
           // Ignorar errores al marcar como leído
         }
       }
+    };
+
+    const onNewSessionMessage = async (message) => {
+
+      const normalized = normalizeMessage(message);
+      if (!normalized?.sessionId) {
+
+        return;
+      }
+
+      // Reutilizamos la misma logica de setMessages usando sessionId como key
+      setMessages((prev) => {
+        const current = prev[normalized.sessionId] || [];
+        // Filtrar temporales
+        const sanitized = current.filter((msg) => {
+          if (msg.status !== 'sending') return true;
+          const sameSender = (msg.sender?.id === normalized.sender_id);
+          const sameContent = msg.content === normalized.content;
+          return !(sameSender && sameContent);
+        });
+
+        // Verificar existencia
+        const existingIndex = sanitized.findIndex(m => m.id === normalized.id || m.tempId === normalized.tempId);
+
+        if (existingIndex !== -1) {
+          const updated = [...sanitized];
+          updated[existingIndex] = { ...normalized, status: 'sent', tempId: updated[existingIndex].tempId };
+          updated.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+          return { ...prev, [normalized.sessionId]: updated };
+        }
+
+        const updated = [...sanitized, normalized];
+        updated.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+        return { ...prev, [normalized.sessionId]: updated };
+      });
     };
 
     const onMessageUpdated = (updatedMessage) => {
@@ -326,15 +363,15 @@ export const SocketProvider = ({ children }) => {
     const onMessageError = (errorData) => {
       if (errorData?.tempId) {
         setMessages((prev) => {
-          const groupId = Object.keys(prev).find(gId => 
+          const groupId = Object.keys(prev).find(gId =>
             prev[gId]?.some(msg => msg.tempId === errorData.tempId)
           );
           if (!groupId) return prev;
-          
+
           const current = prev[groupId] || [];
           const index = current.findIndex((msg) => msg.tempId === errorData.tempId);
           if (index === -1) return prev;
-          
+
           const updated = [...current];
           updated[index] = {
             ...updated[index],
@@ -355,6 +392,7 @@ export const SocketProvider = ({ children }) => {
     socketInstance.on('newMessage', onNewMessage);
     socketInstance.on('messageUpdated', onMessageUpdated);
     socketInstance.on('messageError', onMessageError);
+    socketInstance.on('newSessionMessage', onNewSessionMessage);
 
     setSocket(socketInstance);
 
@@ -365,6 +403,7 @@ export const SocketProvider = ({ children }) => {
       socketInstance.off('newMessage', onNewMessage);
       socketInstance.off('messageUpdated', onMessageUpdated);
       socketInstance.off('messageError', onMessageError);
+      socketInstance.off('newSessionMessage', onNewSessionMessage);
       socketInstance.disconnect();
     };
   }, [user?.id]);
@@ -396,14 +435,14 @@ export const SocketProvider = ({ children }) => {
       setMessages((prev) => {
         const current = prev[groupId] || [];
         const updated = [...current, tempMessage];
-        
+
         // Ordenar por fecha de creación (más antiguo primero)
         updated.sort((a, b) => {
           const timeA = new Date(a.created_at || a.timestamp || 0).getTime();
           const timeB = new Date(b.created_at || b.timestamp || 0).getTime();
           return timeA - timeB;
         });
-        
+
         return {
           ...prev,
           [groupId]: updated,
@@ -440,7 +479,7 @@ export const SocketProvider = ({ children }) => {
             // El mensaje se actualizará automáticamente cuando llegue el evento 'newMessage'
             // del socket, así que solo actualizamos el estado local si es necesario
             const confirmedMessage = normalizeMessage({ ...response.message, groupId });
-            
+
             setMessages((prev) => {
               const current = prev[groupId] || [];
               const index = current.findIndex(
@@ -450,8 +489,8 @@ export const SocketProvider = ({ children }) => {
               const updated = [...current];
               if (index !== -1) {
                 // Reemplazar completamente con el mensaje confirmado del servidor (tiene created_at correcto)
-                updated[index] = { 
-                  ...confirmedMessage, 
+                updated[index] = {
+                  ...confirmedMessage,
                   status: 'sent',
                   // Preservar tempId si existe
                   tempId: updated[index].tempId || confirmedMessage.tempId
@@ -505,6 +544,40 @@ export const SocketProvider = ({ children }) => {
     [socket, user?.id, user?.name, user?.avatar, user?.email]
   );
 
+  const sendSessionMessage = useCallback(async ({ sessionId, content, tempId }) => {
+    if (!socket || !sessionId || !content) throw new Error('Faltan datos');
+
+    const tempIdentifier = tempId || `temp-${Date.now()}`;
+    const tempMessage = normalizeMessage({
+      id: null,
+      tempId: tempIdentifier,
+      content,
+      sessionId, // Key concept
+      sender_id: user.id,
+      status: 'sending',
+      created_at: new Date().toISOString(),
+      sender: { ...user } // Simplified
+    });
+
+    // Optimistic Update
+    setMessages(prev => {
+      const current = prev[sessionId] || [];
+      return { ...prev, [sessionId]: [...current, tempMessage] };
+    });
+
+    return new Promise((resolve, reject) => {
+      socket.emit('sendSessionMessage', { sessionId, content, tempId: tempIdentifier }, (response) => {
+        if (response?.error) {
+          // Rollback or Error state (omitted for brevity, similar to group)
+
+          reject(new Error(response.error));
+        } else {
+          resolve(response.message);
+        }
+      });
+    });
+  }, [socket, user]);
+
   const joinGroup = useCallback(
     async (groupId, options = {}) => {
       const { force = false } = options;
@@ -518,7 +591,7 @@ export const SocketProvider = ({ children }) => {
       // Si ya estamos en el grupo y tenemos mensajes, y no es forzado, solo asegurar socket
       if (!force && activeGroupRef.current === groupId && messagesRef.current[groupId] && messagesRef.current[groupId].length > 0) {
         // Ya estamos en el grupo y tenemos mensajes, solo asegurar que estamos en el socket
-        socket.emit('joinGroup', groupId, () => {});
+        socket.emit('joinGroup', groupId, () => { });
         return;
       }
 
@@ -528,7 +601,7 @@ export const SocketProvider = ({ children }) => {
         // Cargar mensajes solo si no los tenemos o si es forzado
         const hasMessages = messagesRef.current[groupId] && messagesRef.current[groupId].length > 0;
         const shouldFetch = force || !hasMessages;
-        
+
         // Cargar mensajes antes de unirse al socket si es necesario
         // Si falla, continuar de todas formas ya que el socket también puede devolver mensajes
         if (shouldFetch) {
@@ -537,7 +610,7 @@ export const SocketProvider = ({ children }) => {
           } catch (loadError) {
             // Si falla cargar mensajes, continuar de todas formas
             // El socket puede devolver los mensajes
-            console.warn('Error cargando mensajes iniciales, continuando con socket:', loadError);
+
           }
         }
 
@@ -579,7 +652,7 @@ export const SocketProvider = ({ children }) => {
         joiningGroupsRef.current.delete(groupId);
         // No establecer error aquí, solo loguear
         // El socket puede aún funcionar
-        console.warn('Error en joinGroup:', error);
+
         // No lanzar el error para que el componente pueda continuar
       }
     },
@@ -600,6 +673,24 @@ export const SocketProvider = ({ children }) => {
     [socket, activeGroup]
   );
 
+  const joinSession = useCallback(async (sessionId) => {
+    if (!socket || !sessionId) return;
+
+    // Check if we already have messages or joined? 
+    // For simplicity, just emit join.
+    socket.emit('joinSession', sessionId, (response) => {
+      if (response?.success && response.messages) {
+        const normalized = response.messages.map(m => normalizeMessage({ ...m, sessionId }));
+        setMessages(prev => ({ ...prev, [sessionId]: normalized }));
+      }
+    });
+  }, [socket]);
+
+  const leaveSession = useCallback((sessionId) => {
+    if (!socket || !sessionId) return;
+    socket.emit('leaveSession', sessionId);
+  }, [socket]);
+
   // Efecto para hacer scroll al final de los mensajes
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -613,7 +704,10 @@ export const SocketProvider = ({ children }) => {
     messages,
     joinGroup,
     leaveGroup,
+    joinSession,
+    leaveSession,
     sendMessage,
+    sendSessionMessage,
     activeGroup,
     connectionError,
     isLoading,

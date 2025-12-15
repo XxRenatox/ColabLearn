@@ -22,7 +22,7 @@ export const api = axiosInstance;
 const apiRequest = async (endpoint, options = {}) => {
   try {
     const token = getAuthToken();
-    
+
     // Detectar si es FormData para no establecer Content-Type
     const isFormData = options.data instanceof FormData;
 
@@ -44,7 +44,7 @@ const apiRequest = async (endpoint, options = {}) => {
     }
 
     const response = await axiosInstance(config);
-    
+
     if (response.status >= 400) {
       const error = new Error(response.data?.message || 'Error en la solicitud');
       error.response = response;
@@ -63,10 +63,10 @@ const apiRequest = async (endpoint, options = {}) => {
           'No pudimos conectarnos con el servidor. Revisa tu conexión e inténtalo nuevamente.',
       });
     }
-    
+
     // El manejo de 401 se hace en el interceptor de respuesta (tokenRefreshInterceptor)
     // No manejar 401 aquí para permitir que el interceptor intente renovar el token primero
-    
+
     // Formatear error para que sea consistente
     if (error.response?.data) {
       throw buildError({
@@ -74,7 +74,7 @@ const apiRequest = async (endpoint, options = {}) => {
         ...error.response.data,
       });
     }
-    
+
     throw buildError({
       status: error.response?.status || 500,
       message: error.message,
@@ -84,36 +84,36 @@ const apiRequest = async (endpoint, options = {}) => {
 
 // Servicios de autenticación
 export const authAPI = {
-  login: (credentials) => 
+  login: (credentials) =>
     apiRequest('/auth/login', {
       method: 'POST',
       data: credentials,
     }),
-  
-  register: (userData) => 
+
+  register: (userData) =>
     apiRequest('/auth/register', {
       method: 'POST',
       data: userData,
     }),
-  
+
   logout: () => {
     const refreshToken = getRefreshToken();
-    return apiRequest('/auth/logout', { 
+    return apiRequest('/auth/logout', {
       method: 'POST',
       data: { refreshToken }
     });
   },
-  
-  refreshToken: (refreshToken) => 
+
+  refreshToken: (refreshToken) =>
     apiRequest('/auth/refresh', {
       method: 'POST',
       data: { refreshToken },
     }),
-  
-  getMe: () => 
+
+  getMe: () =>
     apiRequest('/auth/me'),
-  
-  forgotPassword: (email) => 
+
+  forgotPassword: (email) =>
     apiRequest('/auth/forgot-password', {
       method: 'POST',
       data: { email },
@@ -122,16 +122,22 @@ export const authAPI = {
 
 // Servicios de usuarios
 export const usersAPI = {
-  getProfile: () => 
+  getProfile: () =>
     apiRequest('/users/profile'),
-  
-  getUser: (userId) => 
+
+  getUser: (userId) =>
     apiRequest(`/users/${userId}`),
-  
-  updateProfile: (profileData) => 
+
+  updateProfile: (profileData) =>
     apiRequest('/users/profile', {
       method: 'PUT',
       data: profileData,
+    }),
+
+  changePassword: (passwordData) =>
+    apiRequest('/users/password', {
+      method: 'PUT',
+      data: passwordData,
     }),
 };
 
@@ -141,183 +147,191 @@ export const groupsAPI = {
     const timestamp = Date.now();
     return apiRequest(`/groups?_t=${timestamp}`, { params });
   },
-  
-  getGroup: (id) => 
+
+  getGroup: (id) =>
     apiRequest(`/groups/${id}`),
-  
-  getGroupByInviteCode: (code) => 
+
+  getGroupByInviteCode: (code) =>
     apiRequest(`/groups/by-invite-code/${code}`),
-  
-  createGroup: (groupData) => 
+
+  createGroup: (groupData) =>
     apiRequest('/groups', {
       method: 'POST',
       data: groupData,
     }),
-  
-  updateGroup: (id, groupData) => 
+
+  updateGroup: (id, groupData) =>
     apiRequest(`/groups/${id}`, {
       method: 'PUT',
       data: groupData,
     }),
-  
-  deleteGroup: (id) => 
+
+  deleteGroup: (id) =>
     apiRequest(`/groups/${id}`, { method: 'DELETE' }),
-  
-  joinGroup: (id, data = {}) => 
-    apiRequest(`/groups/${id}/join`, { 
+
+  joinGroup: (id, data = {}) =>
+    apiRequest(`/groups/${id}/join`, {
       method: 'POST',
-      data 
+      data
     }),
-  
-  leaveGroup: (id) => 
+
+  leaveGroup: (id) =>
     apiRequest(`/groups/${id}/leave`, { method: 'POST' }),
-  
-  searchGroups: (params = {}) => 
+
+  searchGroups: (params = {}) =>
     apiRequest('/groups', { params: { ...params, public: true } }),
-  
+
   getUserRoleInGroup: (groupId) => {
     if (!groupId) return Promise.resolve({ role: null });
     return apiRequest(`/groups/${groupId}/members/me`);
   },
-  
+
   getGroupMembers: (groupId) => {
     if (!groupId) return Promise.resolve([]);
     return apiRequest(`/groups/${groupId}/members`);
   },
-  
-  getPendingMembers: (groupId) => 
+
+  getPendingMembers: (groupId) =>
     apiRequest(`/groups/${groupId}/pending-members`),
-  
-  approveMember: (groupId, memberId) => 
+
+  approveMember: (groupId, memberId) =>
     apiRequest(`/groups/${groupId}/members/${memberId}/approve`, { method: 'POST' }),
-  
-  rejectMember: (groupId, memberId, data = {}) => 
-    apiRequest(`/groups/${groupId}/members/${memberId}/reject`, { 
+
+  rejectMember: (groupId, memberId, data = {}) =>
+    apiRequest(`/groups/${groupId}/members/${memberId}/reject`, {
       method: 'POST',
-      data 
+      data
     }),
 };
 
 // Servicios de sesiones
 export const sessionsAPI = {
-  getSessions: (params = {}) => 
+  getSessions: (params = {}) =>
     apiRequest('/sessions', { params }),
-  
-  getGroupSessions: (groupId, params = {}) => 
+
+  getGroupSessions: (groupId, params = {}) =>
     apiRequest(`/groups/${groupId}/sessions`, { params }),
-  
-  getSession: (id) => 
+
+  getSession: (id) =>
     apiRequest(`/sessions/${id}`),
-  
-  createSession: (sessionData) => 
+
+  createSession: (sessionData) =>
     apiRequest('/sessions', {
       method: 'POST',
       data: sessionData,
     }),
-  
-  updateSession: (id, sessionData) => 
+
+
+
+  updateSession: (id, sessionData) =>
     apiRequest(`/sessions/${id}`, {
       method: 'PUT',
       data: sessionData,
     }),
-  
-  deleteSession: (id) => 
+
+  deleteSession: (id) =>
     apiRequest(`/sessions/${id}`, { method: 'DELETE' }),
-  
-  joinSession: (id) => 
+
+  joinSession: (id) =>
     apiRequest(`/sessions/${id}/join`, { method: 'POST' }),
-  
-  leaveSession: (id) => 
+
+  leaveSession: (id) =>
     apiRequest(`/sessions/${id}/leave`, { method: 'POST' }),
+
+  submitFeedback: (id, feedbackData) =>
+    apiRequest(`/sessions/${id}/feedback`, {
+      method: 'POST',
+      data: feedbackData
+    }),
 };
 
 // Servicios de calendario
 export const calendarAPI = {
-  getEvents: (params = {}) => 
+  getEvents: (params = {}) =>
     apiRequest('/calendar/events', { params }),
-  
-  getEvent: (id) => 
+
+  getEvent: (id) =>
     apiRequest(`/calendar/events/${id}`),
-  
-  createEvent: (eventData) => 
+
+  createEvent: (eventData) =>
     apiRequest('/calendar/events', {
       method: 'POST',
       data: eventData,
     }),
-  
-  updateEvent: (id, eventData) => 
+
+  updateEvent: (id, eventData) =>
     apiRequest(`/calendar/events/${id}`, {
       method: 'PUT',
       data: eventData,
     }),
-  
-  deleteEvent: (id) => 
+
+  deleteEvent: (id) =>
     apiRequest(`/calendar/events/${id}`, { method: 'DELETE' }),
-  
-  getMonthEvents: (year, month) => 
+
+  getMonthEvents: (year, month) =>
     apiRequest(`/calendar/month/${year}/${month}`),
 };
 
 // Servicios de logros
 export const achievementsAPI = {
-  getAchievements: (params = {}) => 
+  getAchievements: (params = {}) =>
     apiRequest('/achievements', { params }),
-  
-  getUserAchievements: (params = {}) => 
+
+  getUserAchievements: (params = {}) =>
     apiRequest('/achievements/user', { params }),
-  
-  getAchievement: (id) => 
+
+  getAchievement: (id) =>
     apiRequest(`/achievements/${id}`),
-  
-  unlockAchievement: (id) => 
+
+  unlockAchievement: (id) =>
     apiRequest(`/achievements/${id}/unlock`, { method: 'POST' }),
-  
-  getStats: () => 
+
+  getStats: () =>
     apiRequest('/achievements/stats'),
-  
-  checkAchievements: () => 
+
+  checkAchievements: () =>
     apiRequest('/achievements/check', { method: 'POST' }),
 };
 
 // Servicios de notificaciones
 export const notificationsAPI = {
-  getNotifications: (params = {}) => 
+  getNotifications: (params = {}) =>
     apiRequest('/notifications', { params }),
-  
-  getUnreadCount: () => 
+
+  getUnreadCount: () =>
     apiRequest('/notifications/unread-count'),
-  
-  getNotification: (id) => 
+
+  getNotification: (id) =>
     apiRequest(`/notifications/${id}`),
-  
-  markAsRead: (id) => 
+
+  markAsRead: (id) =>
     apiRequest(`/notifications/${id}/read`, { method: 'PUT' }),
-  
-  markAllAsRead: () => 
+
+  markAllAsRead: () =>
     apiRequest('/notifications/read-all', { method: 'PUT' }),
-  
-  deleteNotification: (id) => 
+
+  deleteNotification: (id) =>
     apiRequest(`/notifications/${id}`, { method: 'DELETE' }),
-  
-  clearAll: () => 
+
+  clearAll: () =>
     apiRequest('/notifications/clear-all', { method: 'DELETE' }),
-  
-  getTypes: () => 
+
+  getTypes: () =>
     apiRequest('/notifications/types'),
 };
 
 // Servicios de matching
 export const matchingAPI = {
-  getGroupRecommendations: (params = {}) => 
+  getGroupRecommendations: (params = {}) =>
     apiRequest('/matching/groups', { params }),
-  
-  getUserRecommendations: (groupId, params = {}) => 
+
+  getUserRecommendations: (groupId, params = {}) =>
     apiRequest(`/matching/users/${groupId}`, { params }),
-  
-  getPreferences: () => 
+
+  getPreferences: () =>
     apiRequest('/matching/preferences'),
-  
-  updatePreferences: (preferencesData) => 
+
+  updatePreferences: (preferencesData) =>
     apiRequest('/matching/preferences', {
       method: 'PUT',
       data: preferencesData,
@@ -326,22 +340,22 @@ export const matchingAPI = {
 
 // Servicios de recursos
 export const resourcesAPI = {
-  getResources: (params = {}) => 
+  getResources: (params = {}) =>
     apiRequest('/resources', { params }),
-  
-  getResource: (id) => 
+
+  getResource: (id) =>
     apiRequest(`/resources/${id}`),
-  
-  uploadResource: (resourceData) => 
-    apiRequest('/resources', { 
-      method: 'POST', 
-      data: resourceData 
+
+  uploadResource: (resourceData) =>
+    apiRequest('/resources', {
+      method: 'POST',
+      data: resourceData
     }),
-  
-  downloadResource: (id) => 
+
+  downloadResource: (id) =>
     apiRequest(`/resources/${id}/download`),
-  
-  deleteResource: (id) => 
+
+  deleteResource: (id) =>
     apiRequest(`/resources/${id}`, { method: 'DELETE' }),
 };
 
@@ -349,31 +363,31 @@ export const resourcesAPI = {
 export const forumsAPI = {
   // Obtener foros
   getForums: (params = {}) => apiRequest('/forums', { params }),
-  
+
   // Obtener foro específico
   getForum: (id) => apiRequest(`/forums/${id}`),
-  
+
   // Crear foro
   createForum: (data) => apiRequest('/forums', { method: 'POST', data }),
-  
+
   // Actualizar foro
   updateForum: (id, data) => apiRequest(`/forums/${id}`, { method: 'PUT', data }),
-  
+
   // Eliminar foro
   deleteForum: (id) => apiRequest(`/forums/${id}`, { method: 'DELETE' }),
-  
+
   // Obtener posts de un foro
   getForumPosts: (forumId, params = {}) => apiRequest(`/forums/${forumId}/posts`, { params }),
-  
+
   // Obtener post específico
   getPost: (postId) => apiRequest(`/forums/posts/${postId}`),
-  
+
   // Crear post en foro
   createPost: (forumId, data) => apiRequest(`/forums/${forumId}/posts`, { method: 'POST', data }),
-  
+
   // Crear respuesta a post
   createReply: (postId, data) => apiRequest(`/forums/posts/${postId}/replies`, { method: 'POST', data }),
-  
+
   // Dar like a post
   likePost: (postId) => apiRequest(`/forums/posts/${postId}/like`, { method: 'POST' })
 };
@@ -382,56 +396,56 @@ export const forumsAPI = {
 // Servicios de chat
 export const chatAPI = {
   // Obtener mensajes de un grupo
-  getMessages: (groupId, params = {}) => 
+  getMessages: (groupId, params = {}) =>
     apiRequest(`/groups/${groupId}/messages`, { params }),
 
   // Enviar mensaje a un grupo
-  sendMessage: (groupId, content) => 
+  sendMessage: (groupId, content) =>
     apiRequest(`/groups/${groupId}/messages`, {
       method: 'POST',
       data: { content }
     }),
 
   // Marcar mensajes como leídos
-  markAsRead: (groupId, messageIds) => 
+  markAsRead: (groupId, messageIds) =>
     apiRequest(`/groups/${groupId}/messages/read`, {
       method: 'POST',
       data: { messageIds }
     }),
 
   // Obtener información de un grupo de chat
-  getGroupInfo: (groupId) => 
+  getGroupInfo: (groupId) =>
     apiRequest(`/chat/groups/${groupId}`),
 
   // Crear un nuevo grupo de chat
-  createGroup: (groupData) => 
+  createGroup: (groupData) =>
     apiRequest('/chat/groups', {
       method: 'POST',
       data: groupData
     }),
 
   // Actualizar grupo de chat
-  updateGroup: (groupId, groupData) => 
+  updateGroup: (groupId, groupData) =>
     apiRequest(`/chat/groups/${groupId}`, {
       method: 'PUT',
       data: groupData
     }),
 
   // Eliminar grupo de chat
-  deleteGroup: (groupId) => 
+  deleteGroup: (groupId) =>
     apiRequest(`/chat/groups/${groupId}`, {
       method: 'DELETE'
     }),
 
   // Añadir miembro a un grupo
-  addMember: (groupId, userId) => 
+  addMember: (groupId, userId) =>
     apiRequest(`/chat/groups/${groupId}/members`, {
       method: 'POST',
       data: { userId }
     }),
 
   // Eliminar miembro de un grupo
-  removeMember: (groupId, userId) => 
+  removeMember: (groupId, userId) =>
     apiRequest(`/chat/groups/${groupId}/members/${userId}`, {
       method: 'DELETE'
     })

@@ -76,7 +76,7 @@ export default function LoginForm({
     <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in">
       {/* Email */}
       <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+        <div className="absolute left-3 top-0 bottom-0 flex items-center pointer-events-none z-10">
           <Mail className="w-5 h-5 text-gray-400" />
         </div>
         <input
@@ -86,7 +86,7 @@ export default function LoginForm({
           value={formData.email}
           onChange={handleChange}
           onBlur={handleBlur}
-          className={`w-full pl-11 pr-12 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-300 ${
+          className={`w-full pl-11 pr-12 py-3 bg-white border rounded-xl focus:outline-none focus:ring-2 transition-all duration-300 text-gray-900 ${
             errors.email && touched.email
               ? "border-red-500 focus:ring-red-500"
               : touched.email && !errors.email
@@ -96,7 +96,7 @@ export default function LoginForm({
           required
         />
         {touched.email && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div className="absolute right-3 top-0 bottom-0 flex items-center pointer-events-none z-10">
             {errors.email ? (
               <AlertCircle className="w-5 h-5 text-red-500" />
             ) : (
@@ -111,7 +111,7 @@ export default function LoginForm({
 
       {/* Password */}
       <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+        <div className="absolute left-3 top-0 bottom-0 flex items-center pointer-events-none z-10">
           <Lock className="w-5 h-5 text-gray-400" />
         </div>
         <input
@@ -121,7 +121,7 @@ export default function LoginForm({
           value={formData.password}
           onChange={handleChange}
           onBlur={handleBlur}
-          className={`w-full pl-11 pr-12 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-300 ${
+          className={`w-full pl-11 pr-12 py-3 bg-white border rounded-xl focus:outline-none focus:ring-2 transition-all duration-300 text-gray-900 ${
             errors.password && touched.password
               ? "border-red-500 focus:ring-red-500"
               : touched.password && !errors.password
@@ -133,12 +133,13 @@ export default function LoginForm({
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute right-10 top-0 bottom-0 flex items-center text-gray-400 hover:text-gray-600 transition-colors z-10"
+          aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
         >
           {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
         </button>
         {touched.password && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div className="absolute right-3 top-0 bottom-0 flex items-center pointer-events-none z-10">
             {errors.password ? (
               <AlertCircle className="w-5 h-5 text-red-500" />
             ) : (

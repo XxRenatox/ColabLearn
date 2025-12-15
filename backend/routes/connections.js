@@ -269,7 +269,7 @@ router.get('/:userId', asyncHandler(async (req, res) => {
     .in('group_id', sharedGroupIds);
 
   if (sessionsInGroupsError) {
-    console.error('Error obteniendo sesiones de grupos compartidos:', sessionsInGroupsError);
+
   }
 
   const sessionIds = sessionsInSharedGroups?.map(s => s.id) || [];
@@ -294,7 +294,7 @@ router.get('/:userId', asyncHandler(async (req, res) => {
       .limit(10);
 
     if (sessionsError) {
-      console.error('Error obteniendo sesiones compartidas:', sessionsError);
+
     } else {
       sharedSessions = sessionsAttendance || [];
     }
@@ -306,10 +306,10 @@ router.get('/:userId', asyncHandler(async (req, res) => {
     sessions_attended_together: sharedSessions?.length || 0,
     first_connection: sharedGroups?.reduce((earliest, group) =>
       !earliest || new Date(group.joined_at) < new Date(earliest) ? group.joined_at : earliest
-    , null),
+      , null),
     last_activity: sharedGroups?.reduce((latest, group) =>
       !latest || new Date(group.groups?.last_activity) > new Date(latest) ? group.groups.last_activity : latest
-    , null)
+      , null)
   };
 
   res.json({

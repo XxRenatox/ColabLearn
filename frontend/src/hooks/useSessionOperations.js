@@ -3,20 +3,20 @@ import { useCallback } from 'react';
 export const useSessionOperations = (updateSession, addToast, userGroups, loadSessions) => {
   const canJoinSession = useCallback((event) => {
     if (!event) return { canJoin: false, reason: 'Evento no válido' };
-    
+
     const now = new Date();
     // Usar startDate del evento o metadata si está disponible
-    const start = event.startDate ? new Date(event.startDate) : 
-                  (event.metadata?.scheduled_date ? new Date(event.metadata.scheduled_date) : null);
-    
+    const start = event.startDate ? new Date(event.startDate) :
+      (event.metadata?.scheduled_date ? new Date(event.metadata.scheduled_date) : null);
+
     if (!start || isNaN(start.getTime())) {
       return { canJoin: false, reason: 'Fecha de sesión no válida' };
     }
-    
+
     const end = new Date(start);
     const duration = event.metadata?.duration || 120;
     end.setMinutes(start.getMinutes() + duration + 30);
-    
+
     if (now > end) return { canJoin: false, reason: 'La sesión ya terminó' };
     return { canJoin: true };
   }, []);
@@ -32,7 +32,7 @@ export const useSessionOperations = (updateSession, addToast, userGroups, loadSe
 
     try {
       const runtimeStatus = event.runtimeStatus || event.status;
-      
+
       if (runtimeStatus === 'scheduled') {
         // Solo admin/moderador puede iniciar sesiones
         const userRole = userGroups.find(g => g.id === event.groupId)?.userRole;
@@ -43,9 +43,9 @@ export const useSessionOperations = (updateSession, addToast, userGroups, loadSe
 
         // Validar que la sesión no sea demasiado futura (opcional: permitir hasta 1 hora antes)
         const now = new Date();
-        const start = event.startDate ? new Date(event.startDate) : 
-                     (event.metadata?.scheduled_date ? new Date(event.metadata.scheduled_date) : null);
-        
+        const start = event.startDate ? new Date(event.startDate) :
+          (event.metadata?.scheduled_date ? new Date(event.metadata.scheduled_date) : null);
+
         if (start && start > now) {
           const hoursUntilStart = (start.getTime() - now.getTime()) / (1000 * 60 * 60);
           // Permitir iniciar sesiones hasta 1 hora antes de su inicio programado
@@ -63,7 +63,7 @@ export const useSessionOperations = (updateSession, addToast, userGroups, loadSe
         return 'join';
       }
     } catch (err) {
-      console.error('Error al iniciar la sesión:', err);
+
       addToast('Error al iniciar la sesión', 'error');
     }
   }, [canJoinSession, addToast, userGroups, updateSession, loadSessions]);

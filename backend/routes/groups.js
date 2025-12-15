@@ -1,9 +1,9 @@
 const express = require('express');
 const { body, query, param, validationResult } = require('express-validator');
-const { supabase, supabaseAdmin, createTransaction } = require('../config/database');
-const { 
-  asyncHandler, 
-  AppError, 
+const { supabase, supabaseAdmin } = require('../config/database');
+const {
+  asyncHandler,
+  AppError,
   createValidationError,
   createNotFoundError,
   createForbiddenError,
@@ -504,265 +504,265 @@ router.post('/:id/join', [
 
     const groupId = req.params.id;
     const userId = req.user?.id;
-    
+
     if (!userId) {
       throw createAuthError('Usuario no autenticado');
     }
-    
+
     const { inviteCode } = req.body || {};
-    
+
     // Normalizar código de invitación si existe
     const normalizedInviteCode = inviteCode && inviteCode.trim() ? inviteCode.trim().toUpperCase() : null;
 
-  // Obtener detalles del grupo
-  const { data: group, error: groupError } = await supabaseAdmin
-    .from('groups')
-    .select('*, creator:creator_id (id, name, avatar)')
-    .eq('id', groupId)
-    .eq('status', 'active')
-    .single();
+    // Obtener detalles del grupo
+    const { data: group, error: groupError } = await supabaseAdmin
+      .from('groups')
+      .select('*, creator:creator_id (id, name, avatar)')
+      .eq('id', groupId)
+      .eq('status', 'active')
+      .single();
 
-  if (groupError || !group) {
-    throw createNotFoundError('Grupo no encontrado');
-  }
-
-  // Obtener conteo de miembros activos
-  const { data: memberData, error: memberError } = await supabaseAdmin
-    .from('group_members')
-    .select('id')
-    .eq('group_id', groupId)
-    .eq('status', 'active');
-
-  const memberCount = memberData ? memberData.length : 0;
-  const groupWithCount = { ...group, member_count: memberCount };
-
-  // Verificar código de invitación si se proporciona
-  // Si el grupo es privado y se proporciona un código, debe ser válido
-  if (normalizedInviteCode) {
-    // Comparar códigos normalizados (ambos en mayúsculas)
-    const groupInviteCode = group.invite_code ? String(group.invite_code).toUpperCase().trim() : null;
-    if (!groupInviteCode || normalizedInviteCode !== groupInviteCode) {
-      throw createForbiddenError('Código de invitación incorrecto');
+    if (groupError || !group) {
+      throw createNotFoundError('Grupo no encontrado');
     }
-  }
-  // Si el grupo es privado y NO se proporciona código, se creará una solicitud pendiente (no rechazar)
 
-  // Verificar si ya existe alguna membresía (incluyendo inactivas/pending)
-  const { data: existingMembers, error: existingMembersError } = await supabaseAdmin
-    .from('group_members')
-    .select('id, status')
-    .eq('group_id', groupId)
-    .eq('user_id', userId)
-    .order('joined_at', { ascending: false })
-    .limit(1);
+    // Obtener conteo de miembros activos
+    const { data: memberData, error: memberError } = await supabaseAdmin
+      .from('group_members')
+      .select('id')
+      .eq('group_id', groupId)
+      .eq('status', 'active');
 
-  if (existingMembersError && existingMembersError.code !== 'PGRST116') {
-    throw new AppError('Error verificando membresía: ' + existingMembersError.message, 500);
-  }
+    const memberCount = memberData ? memberData.length : 0;
+    const groupWithCount = { ...group, member_count: memberCount };
 
-  const existingMember = Array.isArray(existingMembers) ? existingMembers[0] : existingMembers;
-
-  // Determinar el estado final de la membresía
-  // Si tiene código válido → unirse directamente (excepción)
-  // Si no tiene código y es privado → requiere aprobación
-  // Si no tiene código y require_approval → requiere aprobación
-  // Si no tiene código y no tiene restricciones → activo
-  let finalStatus = 'active';
-  
-  // Si tiene código válido, siempre se une directamente
-  const groupInviteCode = group.invite_code ? String(group.invite_code).toUpperCase().trim() : null;
-  if (normalizedInviteCode && normalizedInviteCode === groupInviteCode) {
-    finalStatus = 'active';
-  } else if (group.is_private) {
-    // Grupos privados sin código requieren aprobación
-    finalStatus = 'pending';
-  } else if (groupWithCount.require_approval) {
-    // Grupos públicos con require_approval también requieren aprobación
-    finalStatus = 'pending';
-  }
-
-  let memberId = null;
-  let reactivated = false;
-
-  if (existingMember) {
-    if (existingMember.status === 'active') {
-      throw new AppError('Ya eres miembro de este grupo', 409);
-    } else {
-      // Si tiene código válido, siempre activo (excepción)
-      const groupInviteCodeForReactivate = group.invite_code ? String(group.invite_code).toUpperCase().trim() : null;
-      if (normalizedInviteCode && normalizedInviteCode === groupInviteCodeForReactivate) {
-        finalStatus = 'active';
-      } else if (group.is_private) {
-        // Grupos privados sin código requieren aprobación
-        finalStatus = 'pending';
-      } else if (groupWithCount.require_approval) {
-        // Grupos públicos con require_approval también requieren aprobación
-        finalStatus = 'pending';
-      } else {
-        finalStatus = 'active';
+    // Verificar código de invitación si se proporciona
+    // Si el grupo es privado y se proporciona un código, debe ser válido
+    if (normalizedInviteCode) {
+      // Comparar códigos normalizados (ambos en mayúsculas)
+      const groupInviteCode = group.invite_code ? String(group.invite_code).toUpperCase().trim() : null;
+      if (!groupInviteCode || normalizedInviteCode !== groupInviteCode) {
+        throw createForbiddenError('Código de invitación incorrecto');
       }
-      
-      // Reactivar membresía
-      const { data: updatedMember, error: reactivateError } = await supabaseAdmin
+    }
+    // Si el grupo es privado y NO se proporciona código, se creará una solicitud pendiente (no rechazar)
+
+    // Verificar si ya existe alguna membresía (incluyendo inactivas/pending)
+    const { data: existingMembers, error: existingMembersError } = await supabaseAdmin
+      .from('group_members')
+      .select('id, status')
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+      .order('joined_at', { ascending: false })
+      .limit(1);
+
+    if (existingMembersError && existingMembersError.code !== 'PGRST116') {
+      throw new AppError('Error verificando membresía: ' + existingMembersError.message, 500);
+    }
+
+    const existingMember = Array.isArray(existingMembers) ? existingMembers[0] : existingMembers;
+
+    // Determinar el estado final de la membresía
+    // Si tiene código válido → unirse directamente (excepción)
+    // Si no tiene código y es privado → requiere aprobación
+    // Si no tiene código y require_approval → requiere aprobación
+    // Si no tiene código y no tiene restricciones → activo
+    let finalStatus = 'active';
+
+    // Si tiene código válido, siempre se une directamente
+    const groupInviteCode = group.invite_code ? String(group.invite_code).toUpperCase().trim() : null;
+    if (normalizedInviteCode && normalizedInviteCode === groupInviteCode) {
+      finalStatus = 'active';
+    } else if (group.is_private) {
+      // Grupos privados sin código requieren aprobación
+      finalStatus = 'pending';
+    } else if (groupWithCount.require_approval) {
+      // Grupos públicos con require_approval también requieren aprobación
+      finalStatus = 'pending';
+    }
+
+    let memberId = null;
+    let reactivated = false;
+
+    if (existingMember) {
+      if (existingMember.status === 'active') {
+        throw new AppError('Ya eres miembro de este grupo', 409);
+      } else {
+        // Si tiene código válido, siempre activo (excepción)
+        const groupInviteCodeForReactivate = group.invite_code ? String(group.invite_code).toUpperCase().trim() : null;
+        if (normalizedInviteCode && normalizedInviteCode === groupInviteCodeForReactivate) {
+          finalStatus = 'active';
+        } else if (group.is_private) {
+          // Grupos privados sin código requieren aprobación
+          finalStatus = 'pending';
+        } else if (groupWithCount.require_approval) {
+          // Grupos públicos con require_approval también requieren aprobación
+          finalStatus = 'pending';
+        } else {
+          finalStatus = 'active';
+        }
+
+        // Reactivar membresía
+        const { data: updatedMember, error: reactivateError } = await supabaseAdmin
+          .from('group_members')
+          .update({
+            status: finalStatus,
+            joined_at: new Date().toISOString(),
+          })
+          .eq('group_id', groupId)
+          .eq('user_id', userId)
+          .select('id')
+          .single();
+
+        if (reactivateError) {
+          throw new AppError('Error reactivando membresía: ' + reactivateError.message, 500);
+        }
+
+        memberId = updatedMember?.id || existingMember.id;
+        reactivated = finalStatus === 'active';
+      }
+    } else {
+      // Verificar límite de miembros
+      if (groupWithCount.member_count >= groupWithCount.max_members) {
+        throw new AppError('El grupo ha alcanzado su límite de miembros', 409);
+      }
+
+      // Crear nueva membresía
+      const { data: newMember, error: joinError } = await supabaseAdmin
         .from('group_members')
-        .update({
+        .insert([{
+          group_id: groupId,
+          user_id: userId,
+          role: 'member',
           status: finalStatus,
-          joined_at: new Date().toISOString(),
-        })
-        .eq('group_id', groupId)
-        .eq('user_id', userId)
+          joined_at: new Date().toISOString()
+        }])
         .select('id')
         .single();
 
-      if (reactivateError) {
-        throw new AppError('Error reactivando membresía: ' + reactivateError.message, 500);
-      }
-      
-      memberId = updatedMember?.id || existingMember.id;
-      reactivated = finalStatus === 'active';
-    }
-  } else {
-    // Verificar límite de miembros
-    if (groupWithCount.member_count >= groupWithCount.max_members) {
-      throw new AppError('El grupo ha alcanzado su límite de miembros', 409);
-    }
-
-    // Crear nueva membresía
-    const { data: newMember, error: joinError } = await supabaseAdmin
-      .from('group_members')
-      .insert([{
-        group_id: groupId,
-        user_id: userId,
-        role: 'member',
-        status: finalStatus,
-        joined_at: new Date().toISOString()
-      }])
-      .select('id')
-      .single();
-
-    if (joinError) {
-      if (joinError.code === '23505') {
-        throw new AppError('Ya existe una solicitud de unión pendiente para este grupo', 409);
-      }
-      throw new AppError('Error uniéndose al grupo: ' + joinError.message, 500);
-    }
-    
-    memberId = newMember?.id;
-  }
-
-  const becameActive =
-    finalStatus === 'active' && (!existingMember || existingMember.status !== 'active');
-
-  if (becameActive || reactivated) {
-    // Actualizar contador de grupos del usuario solo si la membresía quedó activa
-    try {
-      const { data: currentUser, error: userError } = await supabaseAdmin
-        .from('users')
-        .select('total_groups')
-        .eq('id', userId)
-        .single();
-
-      if (!userError && currentUser) {
-        const { error: updateUserError } = await supabaseAdmin
-          .from('users')
-          .update({
-            total_groups: (currentUser.total_groups || 0) + 1
-          })
-          .eq('id', userId);
-
-        if (updateUserError) {
-          console.error('Error actualizando contador de grupos:', updateUserError);
-          // No fallar la solicitud completa si hay error al actualizar el contador
+      if (joinError) {
+        if (joinError.code === '23505') {
+          throw new AppError('Ya existe una solicitud de unión pendiente para este grupo', 409);
         }
-
-        // Actualizar última actividad del grupo cuando hay un nuevo miembro activo
-        await supabaseAdmin
-          .from('groups')
-          .update({ last_activity: new Date().toISOString() })
-          .eq('id', groupId);
+        throw new AppError('Error uniéndose al grupo: ' + joinError.message, 500);
       }
-    } catch (updateErr) {
-      // Si hay error al actualizar contadores, no fallar la solicitud completa
-      console.error('Error actualizando contadores:', updateErr);
+
+      memberId = newMember?.id;
     }
-  }
 
-  // Si la solicitud quedó pendiente, notificar a admins y moderadores
-  if (finalStatus === 'pending') {
-    try {
-      // Obtener información del usuario solicitante
-      const { data: requestingUser, error: userInfoError } = await supabaseAdmin
-        .from('users')
-        .select('id, name, avatar')
-        .eq('id', userId)
-        .single();
+    const becameActive =
+      finalStatus === 'active' && (!existingMember || existingMember.status !== 'active');
 
-      if (!userInfoError && requestingUser) {
-        // Obtener admins y moderadores del grupo
-        const { data: adminsAndMods, error: adminsError } = await supabaseAdmin
-          .from('group_members')
-          .select('user_id')
-          .eq('group_id', groupId)
-          .eq('status', 'active')
-          .in('role', ['admin', 'moderator']);
+    if (becameActive || reactivated) {
+      // Actualizar contador de grupos del usuario solo si la membresía quedó activa
+      try {
+        const { data: currentUser, error: userError } = await supabaseAdmin
+          .from('users')
+          .select('total_groups')
+          .eq('id', userId)
+          .single();
 
-        if (!adminsError && adminsAndMods && adminsAndMods.length > 0) {
-          // Crear notificaciones para cada admin/moderador
-          const notifications = adminsAndMods.map(admin => ({
-            user_id: admin.user_id,
-            type: 'system',
-            title: 'Nueva solicitud de ingreso',
-            message: `${requestingUser.name} solicitó ingresar al grupo "${group.name}"`,
-            related_user_id: userId,
-            related_group_id: groupId,
-            metadata: {
-              request_type: 'group_join',
-              member_id: memberId || null
-            },
-            action_url: `/user/panel?group=${groupId}&tab=requests`
-          }));
+        if (!userError && currentUser) {
+          const { error: updateUserError } = await supabaseAdmin
+            .from('users')
+            .update({
+              total_groups: (currentUser.total_groups || 0) + 1
+            })
+            .eq('id', userId);
 
-          const { error: notificationError } = await supabaseAdmin.from('notifications').insert(notifications);
-          // Si hay error al crear notificaciones, no fallar la solicitud completa
-          if (notificationError) {
-            console.error('Error creando notificaciones:', notificationError);
+          if (updateUserError) {
+
+            // No fallar la solicitud completa si hay error al actualizar el contador
+          }
+
+          // Actualizar última actividad del grupo cuando hay un nuevo miembro activo
+          await supabaseAdmin
+            .from('groups')
+            .update({ last_activity: new Date().toISOString() })
+            .eq('id', groupId);
+        }
+      } catch (updateErr) {
+        // Si hay error al actualizar contadores, no fallar la solicitud completa
+
+      }
+    }
+
+    // Si la solicitud quedó pendiente, notificar a admins y moderadores
+    if (finalStatus === 'pending') {
+      try {
+        // Obtener información del usuario solicitante
+        const { data: requestingUser, error: userInfoError } = await supabaseAdmin
+          .from('users')
+          .select('id, name, avatar')
+          .eq('id', userId)
+          .single();
+
+        if (!userInfoError && requestingUser) {
+          // Obtener admins y moderadores del grupo
+          const { data: adminsAndMods, error: adminsError } = await supabaseAdmin
+            .from('group_members')
+            .select('user_id')
+            .eq('group_id', groupId)
+            .eq('status', 'active')
+            .in('role', ['admin', 'moderator']);
+
+          if (!adminsError && adminsAndMods && adminsAndMods.length > 0) {
+            // Crear notificaciones para cada admin/moderador
+            const notifications = adminsAndMods.map(admin => ({
+              user_id: admin.user_id,
+              type: 'system',
+              title: 'Nueva solicitud de ingreso',
+              message: `${requestingUser.name} solicitó ingresar al grupo "${group.name}"`,
+              related_user_id: userId,
+              related_group_id: groupId,
+              metadata: {
+                request_type: 'group_join',
+                member_id: memberId || null
+              },
+              action_url: `/user/panel?group=${groupId}&tab=requests`
+            }));
+
+            const { error: notificationError } = await supabaseAdmin.from('notifications').insert(notifications);
+            // Si hay error al crear notificaciones, no fallar la solicitud completa
+            if (notificationError) {
+
+            }
           }
         }
-      }
-    } catch (notificationErr) {
-      // Si hay error al crear notificaciones, no fallar la solicitud completa
-      console.error('Error en proceso de notificaciones:', notificationErr);
-    }
-  }
+      } catch (notificationErr) {
+        // Si hay error al crear notificaciones, no fallar la solicitud completa
 
-  // Notificar a miembros del grupo (solo si se unió activamente)
-  if (finalStatus === 'active') {
-    try {
-      const sendGroupUpdate = req.app.get('sendGroupUpdate');
-      if (sendGroupUpdate) {
-        sendGroupUpdate(groupId, {
-          type: 'member_joined',
-          data: { userId, userName: req.user.name }
-        });
       }
-    } catch (socketErr) {
-      // Si hay error con sockets, no fallar la solicitud completa
-      console.error('Error enviando actualización de grupo:', socketErr);
     }
-  }
 
-  res.json({
-    success: true,
-    message: finalStatus === 'pending' 
-      ? 'Solicitud enviada. Espera la aprobación del administrador.'
-      : 'Te has unido al grupo exitosamente',
-    data: {
-      status: finalStatus,
-      is_member: finalStatus === 'active',
-      is_pending: finalStatus === 'pending',
-      group: groupWithCount
+    // Notificar a miembros del grupo (solo si se unió activamente)
+    if (finalStatus === 'active') {
+      try {
+        const sendGroupUpdate = req.app.get('sendGroupUpdate');
+        if (sendGroupUpdate) {
+          sendGroupUpdate(groupId, {
+            type: 'member_joined',
+            data: { userId, userName: req.user.name }
+          });
+        }
+      } catch (socketErr) {
+        // Si hay error con sockets, no fallar la solicitud completa
+
+      }
     }
-  });
+
+    res.json({
+      success: true,
+      message: finalStatus === 'pending'
+        ? 'Solicitud enviada. Espera la aprobación del administrador.'
+        : 'Te has unido al grupo exitosamente',
+      data: {
+        status: finalStatus,
+        is_member: finalStatus === 'active',
+        is_pending: finalStatus === 'pending',
+        group: groupWithCount
+      }
+    });
   } catch (error) {
     // Re-lanzar para que asyncHandler lo maneje
     throw error;
@@ -1205,7 +1205,7 @@ router.put('/:groupId/messages/:messageId', [
 
   const isAuthor = message.sender_id === userId;
   const isAdmin = membership?.role === 'admin' || membership?.role === 'moderator';
-  
+
   if (!isAuthor && !isAdmin) {
     throw createForbiddenError('No tienes permiso para editar este mensaje');
   }
@@ -1288,7 +1288,7 @@ router.delete('/:groupId/messages/:messageId', [
 
   const isAuthor = message.sender_id === userId;
   const isAdmin = membership?.role === 'admin' || membership?.role === 'moderator';
-  
+
   if (!isAuthor && !isAdmin) {
     throw createForbiddenError('No tienes permiso para eliminar este mensaje');
   }
@@ -1637,7 +1637,7 @@ router.post('/:id/members/:memberId/reject', [
       }]);
     } catch (notificationError) {
       // No fallar la solicitud si la notificación falla
-      console.error('Error enviando notificación de rechazo:', notificationError);
+
     }
   }
 

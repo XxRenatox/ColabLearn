@@ -1,0 +1,32 @@
+<svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+ width="234pt" height="300pt" viewBox="0 0 234 300" preserveAspectRatio="xMidYMid meet">
+<defs>
+  <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" style="stop-color:#06B6D4;stop-opacity:1" />
+    <stop offset="50%" style="stop-color:#3B82F6;stop-opacity:1" />
+    <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1" />
+  </linearGradient>
+  <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
+    <stop offset="50%" style="stop-color:#3B82F6;stop-opacity:1" />
+    <stop offset="100%" style="stop-color:#06B6D4;stop-opacity:1" />
+  </linearGradient>
+</defs>
+<g transform="translate(0,300) scale(0.1,-0.1)" fill-rule="evenodd">
+  <!-- Birrete con relleno sólido completo -->
+  <path d="M1080 2672 c-41 -21 -185 -90 -320 -154 -433 -206 -517 -248 -530 -263 -7 -9 -10 -25 -6 -41 7 -27 57 -53 396 -206 484 -217 558 -248 600 -248 33 0 94 23 254 95 524 235 730 331 739 346 5 9 7 27 4 40 -7 26 -41 43 -660 331 -349 162 -350 162 -477 100z" 
+        fill="url(#gradient1)" 
+        stroke="none"/>
+  <path d="M1295 2666 c22 -10 81 -37 130 -60 50 -24 110 -53 135 -64 41 -18 90 -41 320 -149 207 -98 299 -143 304 -152 17 -27 -3 -39 -249 -149 -60 -27 -231 -104 -380 -172 -343 -157 -333 -155 -525 -67 -113 52 -192 87 -195 87 -3 0 -37 15 -77 34 -40 19 -125 57 -188 86 -283 128 -323 150 -313 177 3 8 67 45 142 80 75 36 181 86 236 113 55 26 134 64 175 83 41 19 140 67 220 106 158 76 185 81 265 47z" 
+        fill="url(#gradient1)" 
+        stroke="none"/>
+  <!-- Burbuja con relleno sólido completo -->
+  <path d="M483 1866 l-28 -24 -3 -384 c-4 -441 4 -541 47 -626 34 -67 103 -135 169 -165 43 -20 66 -22 290 -25 l242 -3 0 -164 c0 -90 3 -170 6 -179 4 -10 18 -16 38 -16 23 0 96 43 301 178 328 217 366 253 411 407 15 52 18 119 21 513 6 583 19 554 -215 447 -81 -37 -225 -103 -321 -147 -160 -73 -179 -80 -225 -76 -38 3 -129 40 -365 146 -173 78 -320 142 -327 142 -7 0 -26 -11 -41 -24z" 
+        fill="url(#gradient2)" 
+        stroke="none"/>
+  <path d="M578 1844 c21 -9 64 -29 97 -44 33 -15 83 -38 110 -50 28 -12 73 -32 100 -45 240 -112 276 -125 341 -125 69 0 93 10 589 240 68 31 109 40 123 25 11 -10 18 -464 11 -715 -10 -359 -29 -393 -317 -583 -394 -260 -381 -253 -398 -225 -4 7 -9 69 -10 138 -1 69 -3 137 -3 152 -1 16 -9 31 -19 37 -10 5 -118 12 -239 14 l-220 4 -64 31 c-71 34 -92 51 -131 102 -61 80 -61 84 -65 572 -4 441 -4 447 16 467 25 25 32 26 79 5z" 
+        fill="url(#gradient2)" 
+        stroke="none"/>
+</g>
+</svg>
+

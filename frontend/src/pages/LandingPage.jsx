@@ -61,7 +61,7 @@ function Landing() {
       <StatsSection />
 
       {/* How It Works - Sección principal interactiva */}
-      <HowItWorksSection />
+      <HowItWorksSection onAuthAction={handleAuthAction} />
 
       {/* Testimonials Section */}
       <TestimonialsSection testimonial={testimonial} />

@@ -44,7 +44,7 @@ export default function ColabLearnAuth() {
   useEffect(() => {
     const checkExistingAuth = async () => {
       const token = getAuthToken();
-      
+
       if (!token) {
         setCheckingAuth(false);
         return;
@@ -55,7 +55,7 @@ export default function ColabLearnAuth() {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         const response = await api.get('/auth/me');
         const userData = response.data?.data?.user || response.data?.user || null;
-        
+
         if (userData) {
           // Token válido, redirigir según el rol
           if (userData.role === 'admin') {
@@ -127,15 +127,15 @@ export default function ColabLearnAuth() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       // Validar entrada
       const validation = validateLoginInput(loginData);
       if (!validation.valid) {
-        setFeedback({ 
-          open: true, 
-          type: "error", 
-          title: "Datos inválidos", 
+        setFeedback({
+          open: true,
+          type: "error",
+          title: "Datos inválidos",
           message: validation.errors.join(", ")
         });
         setLoading(false);
@@ -150,13 +150,13 @@ export default function ColabLearnAuth() {
 
       const response = await login(credentials);
 
-      setFeedback({ 
-        open: true, 
-        type: "success", 
-        title: "¡Bienvenido!", 
-        message: "Inicio de sesión exitoso" 
+      setFeedback({
+        open: true,
+        type: "success",
+        title: "¡Bienvenido!",
+        message: "Inicio de sesión exitoso"
       });
-      
+
       setLoginData(initialLoginData);
 
       // Redirigir inmediatamente después del login exitoso según el rol
@@ -167,23 +167,30 @@ export default function ColabLearnAuth() {
       }
 
     } catch (err) {
+      console.error('Login error:', err);
+
       // Verificar si es un error de cuenta desactivada
-      const isAccountDeactivated = err.response?.status === 403 && 
+      const isAccountDeactivated = err.response?.status === 403 &&
         (err.response?.data?.message?.toLowerCase().includes('cuenta desactivada') ||
-         err.response?.data?.message?.toLowerCase().includes('desactivada'));
-      
+          err.response?.data?.message?.toLowerCase().includes('desactivada'));
+
+      // Extraer el mensaje de error del backend
+      const backendMessage = err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message;
+
       const errorTitle = isAccountDeactivated ? 'Cuenta Desactivada' : 'No pudimos iniciar sesión';
-      const errorMessage = isAccountDeactivated 
+      const errorMessage = isAccountDeactivated
         ? (err.response?.data?.message || 'Tu cuenta ha sido desactivada por un administrador. Por favor, contacta al soporte si crees que esto es un error.')
-        : (err.message || "Credenciales inválidas. Intenta nuevamente.");
-      
-      setFeedback({ 
-        open: true, 
-        type: "error", 
-        title: errorTitle, 
+        : (backendMessage || "Error de conexión. Intenta nuevamente.");
+
+      setFeedback({
+        open: true,
+        type: "error",
+        title: errorTitle,
         message: errorMessage
       });
-      
+
       // También mostrar toast para cuenta desactivada
       if (isAccountDeactivated) {
         showError(
@@ -219,21 +226,21 @@ export default function ColabLearnAuth() {
       const data = await register(payload);
 
       if (!data.success) {
-        setFeedback({ 
-          open: true, 
-          type: "error", 
-          title: "Error en registro", 
-          message: data.message || "Error al crear la cuenta" 
+        setFeedback({
+          open: true,
+          type: "error",
+          title: "Error en registro",
+          message: data.message || "Error al crear la cuenta"
         });
         setLoading(false);
         return;
       }
 
-      setFeedback({ 
-        open: true, 
-        type: "success", 
-        title: "¡Cuenta creada!", 
-        message: "Registro exitoso. Redirigiendo..." 
+      setFeedback({
+        open: true,
+        type: "success",
+        title: "¡Cuenta creada!",
+        message: "Registro exitoso. Redirigiendo..."
       });
       setRegisterData(initialRegisterData);
 
@@ -250,11 +257,11 @@ export default function ColabLearnAuth() {
     } catch (err) {
       const errorMsg = err.message || err.response?.data?.error || "Error de conexión. Intenta nuevamente.";
       const errorDetails = err.errors ? '\n' + err.errors.map(e => e.message || e.msg).join('\n') : '';
-      
-      setFeedback({ 
-        open: true, 
-        type: "error", 
-        title: "No pudimos crear tu cuenta", 
+
+      setFeedback({
+        open: true,
+        type: "error",
+        title: "No pudimos crear tu cuenta",
         message: errorMsg + errorDetails
       });
     } finally {
@@ -290,16 +297,7 @@ export default function ColabLearnAuth() {
   ];
 
   // Mostrar loading mientras se verifica la autenticación
-  if (checkingAuth || authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-lg">Verificando sesión...</p>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <>
@@ -316,9 +314,7 @@ export default function ColabLearnAuth() {
           <div className="hidden lg:block text-white space-y-8">
             <div className="space-y-6">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center">
-                  <BookOpen className="w-7 h-7 text-white" />
-                </div>
+                <img src="/logo.svg" alt="ColabLearn" className="w-12 h-12" />
                 <span className="text-3xl font-bold">ColabLearn</span>
               </div>
 
@@ -378,11 +374,10 @@ export default function ColabLearnAuth() {
                       setCurrentView("login");
                       setLoginData(initialLoginData);
                     }}
-                    className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
-                      currentView === "login"
-                        ? "bg-white text-blue-600 shadow-md transform scale-105"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
+                    className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${currentView === "login"
+                      ? "bg-white text-blue-600 shadow-md transform scale-105"
+                      : "text-gray-500 hover:text-gray-700"
+                      }`}
                   >
                     Iniciar Sesión
                   </button>
@@ -391,11 +386,10 @@ export default function ColabLearnAuth() {
                       setCurrentView("register");
                       setRegisterData(initialRegisterData);
                     }}
-                    className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
-                      currentView === "register"
-                        ? "bg-white text-blue-600 shadow-md transform scale-105"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
+                    className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${currentView === "register"
+                      ? "bg-white text-blue-600 shadow-md transform scale-105"
+                      : "text-gray-500 hover:text-gray-700"
+                      }`}
                   >
                     Registro
                   </button>

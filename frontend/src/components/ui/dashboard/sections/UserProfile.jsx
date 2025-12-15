@@ -16,8 +16,11 @@ import {
   Layers,
   Activity,
   Shield,
+  User,
+  ArrowRight,
 } from 'lucide-react';
-import Achievements from './AchievementsSection';
+import { useNavigate } from 'react-router-dom';
+
 import { usersAPI } from '../../../../services/api';
 import { getTokenInfo } from '../../../../services/tokenManager';
 import Avatar from '../../../ui/Avatar';
@@ -42,6 +45,9 @@ const renderChips = (items = [], emptyLabel = 'Sin definir') => {
     </span>
   ));
 };
+
+import SecuritySettings from './SecuritySettings';
+import ProfileEditSettings from './ProfileEditSettings';
 
 const formatStudyStyle = (style) => {
   switch (style) {
@@ -82,6 +88,7 @@ export default function UserProfile({ user, userAchievements = [], achievements 
   const [fullUser, setFullUser] = React.useState(effectiveUser);
   const [loadingProfile, setLoadingProfile] = React.useState(false);
   const [showAvatarModal, setShowAvatarModal] = React.useState(false);
+  const navigate = useNavigate();
 
   // Sincronizar con el usuario del contexto cuando cambie
   React.useEffect(() => {
@@ -194,10 +201,10 @@ export default function UserProfile({ user, userAchievements = [], achievements 
         const timeStr = lastActivity.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         return `${dateStr} a las ${timeStr}`;
       } else {
-        return lastActivity.toLocaleDateString('es-ES', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
+        return lastActivity.toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
         });
       }
     }
@@ -209,12 +216,12 @@ export default function UserProfile({ user, userAchievements = [], achievements 
     if (!fullUser?.last_active) {
       return { label: 'Desconectado', tone: 'text-gray-400', icon: '🔴' };
     }
-    
+
     const lastActive = new Date(fullUser.last_active);
     const now = new Date();
     const diffMs = now - lastActive;
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    
+
     // Si la última actividad fue hace menos de 15 minutos, está en línea
     if (diffMinutes < 15) {
       return { label: 'En línea', tone: 'text-emerald-400', icon: '🟢' };
@@ -296,25 +303,25 @@ export default function UserProfile({ user, userAchievements = [], achievements 
   const getTokenExpiration = () => {
     const tokenInfo = getTokenInfo();
     const lastActive = fullUser?.last_active;
-    
+
     if (!lastActive) {
       return null;
     }
-    
+
     try {
       const loginDate = new Date(lastActive);
       if (isNaN(loginDate.getTime())) {
         return null;
       }
-      
+
       const expirationDate = new Date(loginDate);
       expirationDate.setDate(expirationDate.getDate() + tokenInfo.durationDays);
-      
+
       const now = new Date();
       const diffMs = expirationDate - now;
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      
+
       if (diffMs < 0) {
         return 'Expirado';
       } else if (diffDays > 0) {
@@ -357,21 +364,21 @@ export default function UserProfile({ user, userAchievements = [], achievements 
     const unlocked = userAchievements.filter((ua) => {
       // Verificar que tiene unlocked_at (está desbloqueado)
       const hasUnlocked = ua.unlocked_at !== null && ua.unlocked_at !== undefined;
-      
+
       // Verificar que tiene datos del logro (puede venir como objeto anidado 'achievements' o directo)
-      const hasAchievementData = (ua.achievements && typeof ua.achievements === 'object') || 
-                                 (ua.id && ua.name);
-      
+      const hasAchievementData = (ua.achievements && typeof ua.achievements === 'object') ||
+        (ua.id && ua.name);
+
       return hasUnlocked && hasAchievementData;
     });
 
     // Mapear a formato esperado por el componente Achievements
     const processed = unlocked.map((ua) => {
       // Obtener datos del logro (puede venir como objeto anidado o directo)
-      const achievementData = (ua.achievements && typeof ua.achievements === 'object') 
-        ? ua.achievements 
+      const achievementData = (ua.achievements && typeof ua.achievements === 'object')
+        ? ua.achievements
         : ua;
-      
+
       return {
         id: achievementData.id || ua.achievement_id,
         name: achievementData.name,
@@ -394,6 +401,16 @@ export default function UserProfile({ user, userAchievements = [], achievements 
   const statusChip = fullUser?.is_active === false
     ? { label: 'Cuenta desactivada', tone: 'bg-rose-100 text-rose-700 border-rose-200' }
     : { label: 'Usuario activo', tone: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+
+  const getRarityBg = (rarity) => {
+    switch (rarity) {
+      case 'legendary': return 'from-yellow-400 to-orange-500';
+      case 'epic': return 'from-purple-400 to-pink-500';
+      case 'rare': return 'from-blue-400 to-cyan-500';
+      case 'common':
+      default: return 'from-gray-400 to-gray-500';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -497,7 +514,7 @@ export default function UserProfile({ user, userAchievements = [], achievements 
                   tone: 'from-amber-500 to-orange-500',
                 },
               ].map((item) => (
-                <StatSummaryCard 
+                <StatSummaryCard
                   key={item.title}
                   title={item.title}
                   value={item.value}
@@ -583,21 +600,49 @@ export default function UserProfile({ user, userAchievements = [], achievements 
           )}
 
           <SectionCard title="Logros destacados" icon={Trophy} accent="bg-yellow-50 text-yellow-600 ">
-            {processedAchievements.length > 0 ? (
-              <Achievements 
-                achievements={processedAchievements} 
-                totalAchievements={achievements.length}
-                loading={loading?.achievements || false} 
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-200 p-8 text-center">
-                <Trophy className="h-12 w-12 text-gray-300" />
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900">Aún no tienes logros</h4>
-                  <p className="text-sm text-gray-500">Participa en sesiones y grupos para desbloquear tu primer hito.</p>
+            <div className="space-y-4">
+              {processedAchievements.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 gap-4">
+                    {processedAchievements.slice(0, 3).map((achievement) => {
+                      const bgGradient = getRarityBg(achievement.rarity);
+
+                      return (
+                        <div key={achievement.id} className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 bg-white/50 hover:bg-white transition-colors">
+                          <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${bgGradient} text-white shadow-sm`}>
+                            <Trophy className="h-6 w-6" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-semibold text-gray-900">{achievement.name}</h4>
+                            <p className="truncate text-sm text-gray-500">{achievement.description}</p>
+                            <p className="mt-1 text-xs font-medium text-gray-400 uppercase tracking-wider">
+                              {achievement.rarity === 'legendary' ? 'Legendario' :
+                                achievement.rarity === 'epic' ? 'Épico' :
+                                  achievement.rarity === 'rare' ? 'Raro' : 'Común'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => navigate('/achievements')}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 py-3 text-sm font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 transition-all"
+                  >
+                    Ver todos los logros
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-200 p-8 text-center bg-gray-50/50">
+                  <Trophy className="h-12 w-12 text-gray-300" />
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900">Aún no tienes logros</h4>
+                    <p className="text-sm text-gray-500">Participa en sesiones y grupos para desbloquear tu primer hito.</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </SectionCard>
         </div>
 
@@ -631,6 +676,8 @@ export default function UserProfile({ user, userAchievements = [], achievements 
             </ul>
           </SectionCard>
 
+
+
           <SectionCard title="Plan de crecimiento" icon={Target} accent="bg-indigo-100 text-indigo-600">
             <div className="space-y-4 text-sm text-gray-600">
               <div className="rounded-2xl bg-indigo-50/70 p-4">
@@ -644,6 +691,14 @@ export default function UserProfile({ user, userAchievements = [], achievements 
                 <p className="mt-1 text-purple-600">Completa 3 sesiones colaborativas esta semana para maximizar tus recompensas.</p>
               </div>
             </div>
+          </SectionCard>
+
+          <SectionCard title="Información del Perfil" icon={User} accent="bg-blue-50 text-blue-600">
+            <ProfileEditSettings />
+          </SectionCard>
+
+          <SectionCard title="Seguridad de la Cuenta" icon={Shield} accent="bg-red-50 text-red-600">
+            <SecuritySettings />
           </SectionCard>
         </div>
       </div>

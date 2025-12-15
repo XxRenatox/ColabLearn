@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Menu, X, Star, Users, Check, Trophy } from "lucide-react";
+import { Menu, X, Users, Check, Trophy, Target, Flame } from "lucide-react";
 import Header from "../layout/Header";
 
 // Componente Hero con el estilo mejorado
@@ -29,17 +29,6 @@ const Hero = ({ isAuthenticated, onAuthAction }) => {
       {/* Hero Content */}
       <main className="flex flex-col md:flex-row items-center justify-between flex-1 px-6 md:px-10 py-16 gap-12 relative z-10">
         <div className="max-w-lg space-y-6 text-center md:text-left">
-          <div className="flex items-center gap-2 justify-center md:justify-start mb-4">
-            <div className="flex text-yellow-400">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} size={16} fill="currentColor" />
-              ))}
-            </div>
-            <span className="text-sm text-gray-300">
-              4.9/5 de 10,000+ estudiantes
-            </span>
-          </div>
-
           <h1 className="text-4xl md:text-6xl font-bold leading-tight">
             Estudia.{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
@@ -110,8 +99,9 @@ const Hero = ({ isAuthenticated, onAuthAction }) => {
               </div>
             </div>
 
-            <p className="text-gray-600 mb-6">
-              Completa tus metas diarias y gana recompensas 🎯
+            <p className="text-gray-600 mb-6 flex items-center gap-2">
+              <Target className="w-5 h-5 text-indigo-600" />
+              Completa tus metas diarias y gana recompensas
             </p>
 
             <div className="bg-gray-200 rounded-full h-4 mb-4 overflow-hidden">
@@ -127,8 +117,8 @@ const Hero = ({ isAuthenticated, onAuthAction }) => {
               <p className="text-sm text-gray-500 font-medium">
                 {progressAnimation}% completado
               </p>
-              <div className="flex items-center gap-1">
-                <span className="text-2xl">🔥</span>
+              <div className="flex items-center gap-2">
+                <Flame className="w-5 h-5 text-orange-600" />
                 <span className="text-sm font-bold text-orange-600">
                   7 días seguidos
                 </span>
@@ -137,7 +127,7 @@ const Hero = ({ isAuthenticated, onAuthAction }) => {
 
             <div className="mt-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl border border-yellow-200">
               <div className="flex items-center gap-2">
-                <span className="text-lg">🏆</span>
+                <Trophy className="w-5 h-5 text-orange-600" />
                 <span className="text-sm font-medium text-orange-800">
                   ¡Nuevo logro desbloqueado!
                 </span>

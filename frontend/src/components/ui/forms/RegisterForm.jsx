@@ -1,6 +1,6 @@
-import { 
-  Mail, Lock, User, Eye, EyeOff, ArrowRight, 
-  AlertCircle, CheckCircle, HelpCircle, Check, X 
+import {
+  Mail, Lock, User, Eye, EyeOff, ArrowRight,
+  AlertCircle, CheckCircle, HelpCircle, Check, X
 } from "lucide-react";
 import React, { useState, useCallback } from "react";
 
@@ -147,7 +147,7 @@ export default function RegisterForm({ onSubmit, formData, onChange, loading }) 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    ['firstName','lastName','email','password','confirmPassword','agreeToTerms']
+    ['firstName', 'lastName', 'email', 'password', 'confirmPassword', 'agreeToTerms']
       .forEach(field => validateField(field, formData[field]));
     if (isFormValid) {
       setIsValidating(true);
@@ -157,15 +157,15 @@ export default function RegisterForm({ onSubmit, formData, onChange, loading }) 
 
   // --- Password strength bar ---
   const strength = getPasswordStrength(formData.password || '');
-  const colors = ['bg-red-500','bg-red-400','bg-yellow-400','bg-blue-400','bg-green-400','bg-green-500'];
-  const labels = ['Muy débil','Débil','Regular','Buena','Fuerte','Muy fuerte'];
+  const colors = ['bg-red-500', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-green-400', 'bg-green-500'];
+  const labels = ['Muy débil', 'Débil', 'Regular', 'Buena', 'Fuerte', 'Muy fuerte'];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in">
 
       {/* Nombre y Apellido */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[['firstName','Nombre'],['lastName','Apellido']].map(([key,label]) => (
+        {[['firstName', 'Nombre'], ['lastName', 'Apellido']].map(([key, label]) => (
           <div key={key}>
             <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
             <div className="relative">
@@ -308,7 +308,7 @@ export default function RegisterForm({ onSubmit, formData, onChange, loading }) 
           className={`h-4 w-4 mt-1 rounded ${touched.agreeToTerms && errors.agreeToTerms ? 'border-red-500' : 'border-gray-300'} text-blue-600 focus:ring-blue-500`}
         />
         <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700">
-          Acepto los <a href="/terminos" className="text-blue-600 hover:text-blue-500">Términos y Condiciones</a>
+          Acepto los <a href="/terms" className="text-blue-600 hover:text-blue-500">Términos y Condiciones</a>
         </label>
       </div>
       {touched.agreeToTerms && errors.agreeToTerms && (
@@ -319,11 +319,10 @@ export default function RegisterForm({ onSubmit, formData, onChange, loading }) 
       <button
         type="submit"
         disabled={!isFormValid || loading || isValidating}
-        className={`group relative w-full flex justify-center items-center py-3 px-4 rounded-md text-sm font-semibold text-white transition-colors duration-200 ${
-          !isFormValid || loading || isValidating
+        className={`group relative w-full flex justify-center items-center py-3 px-4 rounded-md text-sm font-semibold text-white transition-colors duration-200 ${!isFormValid || loading || isValidating
             ? 'bg-blue-400 cursor-not-allowed'
             : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-        }`}
+          }`}
       >
         {loading || isValidating ? (
           <div className="flex items-center space-x-2">

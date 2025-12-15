@@ -59,7 +59,7 @@ export default function AdminDashboard() {
   const [groupSearch, setGroupSearch] = useState('');
   const [groupStatusFilter, setGroupStatusFilter] = useState('all');
   const [sessionStatusFilter, setSessionStatusFilter] = useState('all');
-  
+
   // Determinar sección activa basada en hash de URL
   const [activeSection, setActiveSection] = useState(() => {
     const hash = window.location.hash.replace('#', '');
@@ -86,7 +86,7 @@ export default function AdminDashboard() {
       console.error('Error fetching dashboard:', err);
       const errorMessage = err?.response?.data?.message || err?.message || 'Error desconocido';
       const errorStatus = err?.response?.status || err?.status || 500;
-      
+
       // Solo mostrar error crítico si es 401 o 403 (problemas de autenticación/autorización)
       if (errorStatus === 401 || errorStatus === 403) {
         setError(`Error de autenticación: ${errorMessage}`);
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
       };
       const response = await adminAPI.getGroups(params);
       const payload = response?.data || response;
-      console.log('Groups data received:', payload);
+
       setGroupsState({
         list: payload.groups || [],
         total: payload.total || 0,
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
       };
       const response = await adminAPI.getSessions(params);
       const payload = response?.data || response;
-      console.log('Sessions data received:', payload);
+
       setSessionsState({
         list: payload.sessions || [],
         total: payload.total || 0,
@@ -272,7 +272,7 @@ export default function AdminDashboard() {
     const timer = setTimeout(() => {
       fetchUsers(1);
     }, userSearch ? 500 : 0);
-    
+
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userSearch, userStatusFilter, userRoleFilter]);
@@ -286,7 +286,7 @@ export default function AdminDashboard() {
     const timer = setTimeout(() => {
       fetchGroups(1);
     }, groupSearch ? 500 : 0);
-    
+
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupSearch, groupStatusFilter]);
@@ -311,10 +311,10 @@ export default function AdminDashboard() {
   const handleToggleGroupStatus = async (group) => {
     const currentStatus = group.status || 'active';
     const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    
+
     try {
       await adminAPI.updateGroupStatus(group.id, nextStatus);
-      
+
       // Actualizar el grupo en la lista local
       setGroupsState((prev) => ({
         ...prev,
@@ -375,14 +375,14 @@ export default function AdminDashboard() {
     try {
       const currentStatus = targetUser.is_active;
       const nextStatus = !currentStatus;
-      
+
       // No hacer nada si el estado no cambió realmente
       if (currentStatus === nextStatus) {
         return;
       }
 
       const response = await adminAPI.updateUserStatus(targetUser.id, nextStatus);
-      
+
       // Verificar respuesta exitosa
       if (response?.success !== false) {
         toast.success(
@@ -401,32 +401,28 @@ export default function AdminDashboard() {
         // Actualizar resumen del dashboard
         setDashboardData((prev) => {
           if (!prev?.summaries?.users) {
-            console.warn('No summaries.users available, skipping update');
+
             return prev;
           }
 
           const { users: userSummary, ...restSummaries } = prev.summaries;
-          
+
           // Obtener valores actuales como números, asegurando que sean válidos
           const currentActive = Number(userSummary.active) || 0;
           const currentInactive = Number(userSummary.inactive) || 0;
-          
+
           // Calcular nuevos valores basados en el cambio de estado
           const updatedSummary = {
             ...userSummary,
-            active: nextStatus 
+            active: nextStatus
               ? currentActive + 1  // Si se activa, aumentar activos
               : Math.max(0, currentActive - 1), // Si se desactiva, disminuir activos (no menor a 0)
-            inactive: nextStatus 
+            inactive: nextStatus
               ? Math.max(0, currentInactive - 1) // Si se activa, disminuir inactivos (no menor a 0)
               : currentInactive + 1, // Si se desactiva, aumentar inactivos
           };
 
-          console.log('Updating dashboard summaries:', {
-            previous: { active: currentActive, inactive: currentInactive },
-            nextStatus,
-            updated: { active: updatedSummary.active, inactive: updatedSummary.inactive },
-          });
+
 
           return {
             ...prev,
@@ -527,7 +523,7 @@ export default function AdminDashboard() {
             {activeSection === 'resources' && <ResourcesManagement />}
             {activeSection === 'forums' && <ForumsManagement />}
             {activeSection === 'logs' && <SystemLogs />}
-            
+
             {/* Dashboard Section */}
             {activeSection === 'dashboard' && (
               <>

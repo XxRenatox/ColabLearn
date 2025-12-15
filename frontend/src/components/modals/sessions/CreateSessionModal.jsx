@@ -113,25 +113,25 @@ const CreateSessionModal = ({ isOpen, onClose, onSessionCreated, preselectedGrou
 
     // Construir objeto de datos limpio, solo con campos necesarios
     let sessionData = {
-        title: formData.title.trim(),
-        description: formData.description?.trim() || '',
-        group_id: formData.group_id,
-        scheduled_date: scheduledDateTime,
-        duration: parseInt(formData.duration),
-        type: formData.type || 'study',
-        location_type: formData.location_type || 'virtual',
-        location_details: formData.location_details?.trim() || '',
-        location_room: formData.location_room?.trim() || '',
-        platform: formData.platform || 'Google Meet',
-        max_attendees: parseInt(formData.max_attendees) || 20,
-        agenda: Array.isArray(formData.agenda) ? formData.agenda : [],
-        // Combinar recursos del grupo seleccionados y recursos adicionales
-        resources: [
-          ...(Array.isArray(formData.resources) ? formData.resources : []),
-          ...(Array.isArray(formData.additionalResources) ? formData.additionalResources : [])
-        ]
-      };
-      
+      title: formData.title.trim(),
+      description: formData.description?.trim() || '',
+      group_id: formData.group_id,
+      scheduled_date: scheduledDateTime,
+      duration: parseInt(formData.duration),
+      type: formData.type || 'study',
+      location_type: formData.location_type || 'virtual',
+      location_details: formData.location_details?.trim() || '',
+      location_room: formData.location_room?.trim() || '',
+      platform: formData.platform || 'Google Meet',
+      max_attendees: parseInt(formData.max_attendees) || 20,
+      agenda: Array.isArray(formData.agenda) ? formData.agenda : [],
+      // Combinar recursos del grupo seleccionados y recursos adicionales
+      resources: [
+        ...(Array.isArray(formData.resources) ? formData.resources : []),
+        ...(Array.isArray(formData.additionalResources) ? formData.additionalResources : [])
+      ]
+    };
+
     // Eliminar campos vacíos opcionales
     if (!sessionData.description) delete sessionData.description;
     if (!sessionData.location_details) delete sessionData.location_details;
@@ -140,35 +140,23 @@ const CreateSessionModal = ({ isOpen, onClose, onSessionCreated, preselectedGrou
     if (sessionData.resources.length === 0) delete sessionData.resources;
 
     // Log para debugging
-    console.log('Enviando datos de sesión:', {
-      ...sessionData,
-      scheduled_date: scheduledDateTime
-    });
+
 
     try {
       const session = await createSession(sessionData);
-      
+
       // Notificar primero antes de cerrar el modal
       if (onSessionCreated) {
         onSessionCreated(session);
       }
-      
+
       // Cerrar modal y resetear formulario
       onClose();
       resetForm();
     } catch (error) {
       // Error creating session - el error ya se maneja en useSessions
       // El error puede venir transformado por buildError, así que accedemos a diferentes propiedades
-      console.error('Error creando sesión:', error);
-      console.error('Datos enviados:', sessionData);
-      console.error('Error completo:', {
-        message: error.message,
-        status: error.status,
-        response: error.response,
-        responseData: error.response?.data,
-        errors: error.errors,
-        original: error.original
-      });
+
     }
   };
 
@@ -254,11 +242,11 @@ const CreateSessionModal = ({ isOpen, onClose, onSessionCreated, preselectedGrou
   // Generar fecha mínima (ahora + 30 minutos) usando hora local del cliente
   const getMinDateTime = () => {
     const now = new Date();
-    // Agregar 30 minutos
-    now.setMinutes(now.getMinutes() + 30);
+    // Agregar 4 horas (240 minutos)
+    now.setMinutes(now.getMinutes() + 240);
     // Redondear a los minutos (eliminar segundos y milisegundos)
     now.setSeconds(0, 0);
-    
+
     // Formatear en hora local para datetime-local input (YYYY-MM-DDTHH:mm)
     // Usar métodos get* que devuelven valores en hora local
     const year = now.getFullYear();
@@ -266,7 +254,7 @@ const CreateSessionModal = ({ isOpen, onClose, onSessionCreated, preselectedGrou
     const day = String(now.getDate()).padStart(2, '0');
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    
+
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
@@ -394,100 +382,100 @@ const CreateSessionModal = ({ isOpen, onClose, onSessionCreated, preselectedGrou
           {/* Ubicación */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Ubicación</h3>
-              
-              {/* Tipo de ubicación */}
-              <div className="flex space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="location_type"
-                    value="virtual"
-                    checked={formData.location_type === 'virtual'}
-                    onChange={handleInputChange}
-                    className="mr-2"
-                  />
-                  <Video className="w-4 h-4 mr-1" />
-                  Virtual
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="location_type"
-                    value="physical"
-                    checked={formData.location_type === 'physical'}
-                    onChange={handleInputChange}
-                    className="mr-2"
-                  />
-                  <MapPin className="w-4 h-4 mr-1" />
-                  Presencial
-                </label>
-              </div>
 
-              {/* Detalles de ubicación */}
-              {formData.location_type === 'virtual' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Plataforma
-                    </label>
-                    <select
-                      name="platform"
-                      value={formData.platform}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {platforms.map((platform) => (
-                        <option key={platform} value={platform}>
-                          {platform}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Enlace/ID de Reunión
-                    </label>
-                    <input
-                      type="text"
-                      name="location_details"
-                      value={formData.location_details}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Se generará automáticamente si se deja vacío"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Ubicación
-                    </label>
-                    <input
-                      type="text"
-                      name="location_details"
-                      value={formData.location_details}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Ej: Biblioteca Central"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Sala/Aula
-                    </label>
-                    <input
-                      type="text"
-                      name="location_room"
-                      value={formData.location_room}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Ej: Sala 301"
-                    />
-                  </div>
-                </div>
-              )}
+            {/* Tipo de ubicación */}
+            <div className="flex space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="location_type"
+                  value="virtual"
+                  checked={formData.location_type === 'virtual'}
+                  onChange={handleInputChange}
+                  className="mr-2"
+                />
+                <Video className="w-4 h-4 mr-1" />
+                Virtual
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="location_type"
+                  value="physical"
+                  checked={formData.location_type === 'physical'}
+                  onChange={handleInputChange}
+                  className="mr-2"
+                />
+                <MapPin className="w-4 h-4 mr-1" />
+                Presencial
+              </label>
             </div>
+
+            {/* Detalles de ubicación */}
+            {formData.location_type === 'virtual' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Plataforma
+                  </label>
+                  <select
+                    name="platform"
+                    value={formData.platform}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {platforms.map((platform) => (
+                      <option key={platform} value={platform}>
+                        {platform}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Enlace/ID de Reunión
+                  </label>
+                  <input
+                    type="text"
+                    name="location_details"
+                    value={formData.location_details}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Se generará automáticamente si se deja vacío"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ubicación
+                  </label>
+                  <input
+                    type="text"
+                    name="location_details"
+                    value={formData.location_details}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ej: Biblioteca Central"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sala/Aula
+                  </label>
+                  <input
+                    type="text"
+                    name="location_room"
+                    value={formData.location_room}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ej: Sala 301"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Máximo de asistentes */}
           <div>
@@ -511,13 +499,90 @@ const CreateSessionModal = ({ isOpen, onClose, onSessionCreated, preselectedGrou
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Agenda
             </label>
+            <div className="space-y-2">
+              {formData.agenda.map((item, index) => (
+                <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                  <span>{item}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeAgendaItem(index)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={agendaInput}
+                  onChange={(e) => setAgendaInput(e.target.value)}
+                  onKeyPress={(e) => handleKeyPress(e, addAgendaItem)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Agregar punto de agenda..."
+                />
+                <button
+                  type="button"
+                  onClick={addAgendaItem}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Agregar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Recursos */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Recursos de la Sesión
+            </label>
+
+            {/* Recursos del grupo */}
+            {formData.group_id && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Recursos del Grupo {loadingResources && <span className="text-gray-500">(Cargando...)</span>}
+                </h4>
+                {groupResources.length > 0 ? (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {groupResources.map((resource) => (
+                      <label key={resource.id} className="flex items-center space-x-3 p-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={formData.resources.includes(resource.id)}
+                          onChange={() => toggleGroupResource(resource.id)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {resource.name || resource.title}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {resource.type || resource.resource_type}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                ) : !loadingResources && (
+                  <p className="text-sm text-gray-500 italic">No hay recursos disponibles en este grupo</p>
+                )}
+              </div>
+            )}
+
+            {/* Recursos adicionales */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                Recursos Adicionales
+              </h4>
               <div className="space-y-2">
-                {formData.agenda.map((item, index) => (
+                {formData.additionalResources.map((resource, index) => (
                   <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span>{item}</span>
+                    <span>{resource}</span>
                     <button
                       type="button"
-                      onClick={() => removeAgendaItem(index)}
+                      onClick={() => removeResource(index)}
                       className="text-red-600 hover:text-red-800"
                     >
                       <X className="w-4 h-4" />
@@ -527,15 +592,15 @@ const CreateSessionModal = ({ isOpen, onClose, onSessionCreated, preselectedGrou
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={agendaInput}
-                    onChange={(e) => setAgendaInput(e.target.value)}
-                    onKeyPress={(e) => handleKeyPress(e, addAgendaItem)}
+                    value={resourceInput}
+                    onChange={(e) => setResourceInput(e.target.value)}
+                    onKeyPress={(e) => handleKeyPress(e, addResource)}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Agregar punto de agenda..."
+                    placeholder="Agregar recurso adicional (enlace, documento, etc.)..."
                   />
                   <button
                     type="button"
-                    onClick={addAgendaItem}
+                    onClick={addResource}
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     Agregar
@@ -543,84 +608,7 @@ const CreateSessionModal = ({ isOpen, onClose, onSessionCreated, preselectedGrou
                 </div>
               </div>
             </div>
-
-          {/* Recursos */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Recursos de la Sesión
-            </label>
-              
-              {/* Recursos del grupo */}
-              {formData.group_id && (
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">
-                    Recursos del Grupo {loadingResources && <span className="text-gray-500">(Cargando...)</span>}
-                  </h4>
-                  {groupResources.length > 0 ? (
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {groupResources.map((resource) => (
-                        <label key={resource.id} className="flex items-center space-x-3 p-2 border border-gray-200 rounded-lg hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            checked={formData.resources.includes(resource.id)}
-                            onChange={() => toggleGroupResource(resource.id)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-gray-900 truncate">
-                              {resource.name || resource.title}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {resource.type || resource.resource_type}
-                            </div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  ) : !loadingResources && (
-                    <p className="text-sm text-gray-500 italic">No hay recursos disponibles en este grupo</p>
-                  )}
-                </div>
-              )}
-
-              {/* Recursos adicionales */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">
-                  Recursos Adicionales
-                </h4>
-                <div className="space-y-2">
-                  {formData.additionalResources.map((resource, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                      <span>{resource}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeResource(index)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={resourceInput}
-                      onChange={(e) => setResourceInput(e.target.value)}
-                      onKeyPress={(e) => handleKeyPress(e, addResource)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Agregar recurso adicional (enlace, documento, etc.)..."
-                    />
-                    <button
-                      type="button"
-                      onClick={addResource}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      Agregar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+          </div>
 
           {/* Botones */}
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">

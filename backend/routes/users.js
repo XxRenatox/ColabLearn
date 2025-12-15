@@ -2,9 +2,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { body, query, validationResult } = require('express-validator');
 const { supabase, supabaseAdmin } = require('../config/database');
-const { 
-  asyncHandler, 
-  AppError, 
+const {
+  asyncHandler,
+  AppError,
   createValidationError,
   createNotFoundError,
   createAuthError
@@ -112,19 +112,19 @@ router.put('/profile', [
     .single();
 
   if (getUserError) {
-    console.error('Error obteniendo usuario:', getUserError);
+
     throw new AppError(`Error obteniendo usuario: ${getUserError.message}`, 500);
   }
 
   if (!currentUser) {
-    console.error(`Usuario no encontrado con ID: ${userId}`);
+
     throw createNotFoundError('Usuario');
   }
 
   // Fusionar preferencias existentes con las nuevas (actualización parcial)
   const existingPreferences = currentUser.preferences || {};
   const newPreferences = updateData.preferences || {};
-  
+
   const mergedPreferences = {
     ...existingPreferences,
     ...newPreferences,
@@ -137,7 +137,7 @@ router.put('/profile', [
     preferences: mergedPreferences,
     updated_at: new Date().toISOString()
   };
-  
+
   // Solo actualizar campos académicos si se enviaron
   if (updateData.university) updatePayload.university = updateData.university;
   if (updateData.career) updatePayload.career = updateData.career;
@@ -153,7 +153,7 @@ router.put('/profile', [
     .single();
 
   if (updateError) {
-    console.error('Error actualizando usuario:', updateError);
+
     throw new AppError('Error actualizando perfil: ' + updateError.message, 500);
   }
 
@@ -238,7 +238,18 @@ router.put('/password', [
   }
 
   // Verificar contraseña actual
-  const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!user.password_hash) {
+    throw new AppError('No tienes una contraseña configurada. Usa la recuperación de contraseña.', 400);
+  }
+
+  let isValidPassword = false;
+  try {
+    isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
+  } catch (err) {
+    // Si bcrypt falla (hash inválido), tratamos como contraseña incorrecta
+    isValidPassword = false;
+  }
+
   if (!isValidPassword) {
     throw new AppError('Contraseña actual incorrecta', 400);
   }
@@ -312,9 +323,9 @@ router.post('/xp', [
   // Actualizar usuario
   const { data: updatedUser, error: updateError } = await supabase
     .from('users')
-    .update({ 
-      xp: newXP, 
-      level: newLevel 
+    .update({
+      xp: newXP,
+      level: newLevel
     })
     .eq('id', userId)
     .select('level, xp')
@@ -328,7 +339,7 @@ router.post('/xp', [
   if (levelsGained > 0) {
     const io = req.app.get('io');
     const sendNotification = req.app.get('sendNotification');
-    
+
     if (sendNotification) {
       sendNotification(userId, {
         type: 'level_up',
@@ -544,7 +555,7 @@ router.delete('/account', [
   // Desactivar usuario (no eliminamos para mantener integridad de datos)
   const { error: updateError } = await supabase
     .from('users')
-    .update({ 
+    .update({
       is_active: false,
       deactivated_at: new Date().toISOString(),
       deactivation_reason: reason

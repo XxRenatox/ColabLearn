@@ -27,11 +27,11 @@ const decodeToken = (token) => {
 const isTokenExpiringSoon = (token) => {
   const decoded = decodeToken(token);
   if (!decoded || !decoded.exp) return false;
-  
+
   const expirationTime = decoded.exp * 1000; // Convertir a milisegundos
   const now = Date.now();
   const fiveMinutes = 5 * 60 * 1000;
-  
+
   return (expirationTime - now) < fiveMinutes;
 };
 
@@ -41,10 +41,10 @@ const isTokenExpiringSoon = (token) => {
 const isTokenExpired = (token) => {
   const decoded = decodeToken(token);
   if (!decoded || !decoded.exp) return true;
-  
+
   const expirationTime = decoded.exp * 1000;
   const now = Date.now();
-  
+
   return expirationTime < now;
 };
 
@@ -57,7 +57,7 @@ const safeSetItem = (key, value) => {
     localStorage.setItem(key, value);
     return true;
   } catch (error) {
-    console.warn(`Error guardando ${key}:`, error);
+
     return false;
   }
 };
@@ -70,7 +70,7 @@ const safeGetItem = (key) => {
   try {
     return localStorage.getItem(key);
   } catch (error) {
-    console.warn(`Error leyendo ${key}:`, error);
+
     return null;
   }
 };
@@ -83,7 +83,7 @@ const safeRemoveItem = (key) => {
   try {
     localStorage.removeItem(key);
   } catch (error) {
-    console.warn(`Error eliminando ${key}:`, error);
+
   }
 };
 
@@ -92,7 +92,7 @@ const safeRemoveItem = (key) => {
  */
 export const setAuthTokens = (accessToken, refreshToken, refreshTokenExpiresAt) => {
   if (!isBrowser) return;
-  
+
   if (!accessToken) {
     clearAuthToken();
     return;
@@ -100,17 +100,17 @@ export const setAuthTokens = (accessToken, refreshToken, refreshTokenExpiresAt) 
 
   // Guardar access token
   safeSetItem(TOKEN_KEY, accessToken);
-  
+
   // Guardar refresh token si se proporciona
   if (refreshToken) {
     safeSetItem(REFRESH_TOKEN_KEY, refreshToken);
   }
-  
+
   // Guardar fecha de expiración del refresh token
   if (refreshTokenExpiresAt) {
     safeSetItem(REFRESH_TOKEN_EXPIRES_AT_KEY, refreshTokenExpiresAt);
   }
-  
+
   // Calcular y guardar expiración del access token
   const decoded = decodeToken(accessToken);
   if (decoded?.exp) {
@@ -190,7 +190,7 @@ export const refreshAccessToken = async () => {
     }
 
     const data = await response.json();
-    
+
     if (data.success && data.data) {
       // Actualizar tokens
       setAuthTokens(
@@ -198,7 +198,7 @@ export const refreshAccessToken = async () => {
         data.data.refreshToken,
         data.data.expiresAt
       );
-      
+
       return {
         token: data.data.token,
         refreshToken: data.data.refreshToken,
@@ -224,7 +224,7 @@ export const getTokenInfo = () => {
   const refreshTokenExpiresAt = safeGetItem(REFRESH_TOKEN_EXPIRES_AT_KEY);
 
   const decoded = accessToken ? decodeToken(accessToken) : null;
-  
+
   return {
     hasAccessToken: !!accessToken,
     hasRefreshToken: !!refreshToken,

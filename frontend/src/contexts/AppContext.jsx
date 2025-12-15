@@ -23,14 +23,14 @@ const initialState = {
   user: null,
   token: getAuthToken() || null,
   isAuthenticated: false,
-  
+
   // Datos del dashboard
   groups: [],
   sessions: [],
   notifications: [],
   achievements: [],
   userAchievements: [],
-  
+
   // Estados de carga
   loading: {
     user: false,
@@ -39,10 +39,10 @@ const initialState = {
     notifications: false,
     achievements: false,
   },
-  
+
   // Errores
   errors: {},
-  
+
   // Socket.IO
   socket: null,
   isConnected: false,
@@ -54,25 +54,25 @@ const ACTIONS = {
   SET_USER: 'SET_USER',
   SET_TOKEN: 'SET_TOKEN',
   LOGOUT: 'LOGOUT',
-  
+
   // Loading states
   SET_LOADING: 'SET_LOADING',
-  
+
   // Datos
   SET_GROUPS: 'SET_GROUPS',
   SET_SESSIONS: 'SET_SESSIONS',
   SET_NOTIFICATIONS: 'SET_NOTIFICATIONS',
   SET_ACHIEVEMENTS: 'SET_ACHIEVEMENTS',
   SET_USER_ACHIEVEMENTS: 'SET_USER_ACHIEVEMENTS',
-  
+
   // Errores
   SET_ERROR: 'SET_ERROR',
   CLEAR_ERROR: 'CLEAR_ERROR',
-  
+
   // Socket
   SET_SOCKET: 'SET_SOCKET',
   SET_CONNECTION_STATUS: 'SET_CONNECTION_STATUS',
-  
+
   // Actualizaciones en tiempo real
   ADD_NOTIFICATION: 'ADD_NOTIFICATION',
   UPDATE_GROUP: 'UPDATE_GROUP',
@@ -88,14 +88,14 @@ const appReducer = (state, action) => {
         user: action.payload,
         isAuthenticated: Boolean(action.payload && (state.token || getAuthToken())),
       };
-      
+
     case ACTIONS.SET_TOKEN:
       return {
         ...state,
         token: action.payload,
         isAuthenticated: Boolean(action.payload && state.user),
       };
-    
+
     case ACTIONS.LOGOUT:
       return {
         ...initialState,
@@ -103,7 +103,7 @@ const appReducer = (state, action) => {
         token: null,
         isAuthenticated: false,
       };
-      
+
     case ACTIONS.SET_LOADING:
       return {
         ...state,
@@ -112,37 +112,37 @@ const appReducer = (state, action) => {
           [action.payload.key]: action.payload.value,
         },
       };
-      
+
     case ACTIONS.SET_GROUPS:
       return {
         ...state,
         groups: action.payload,
       };
-      
+
     case ACTIONS.SET_SESSIONS:
       return {
         ...state,
         sessions: action.payload,
       };
-      
+
     case ACTIONS.SET_NOTIFICATIONS:
       return {
         ...state,
         notifications: action.payload,
       };
-      
+
     case ACTIONS.SET_ACHIEVEMENTS:
       return {
         ...state,
         achievements: action.payload,
       };
-      
+
     case ACTIONS.SET_USER_ACHIEVEMENTS:
       return {
         ...state,
         userAchievements: action.payload,
       };
-      
+
     case ACTIONS.SET_ERROR:
       return {
         ...state,
@@ -151,7 +151,7 @@ const appReducer = (state, action) => {
           [action.payload.key]: action.payload.error,
         },
       };
-      
+
     case ACTIONS.CLEAR_ERROR:
       const newErrors = { ...state.errors };
       delete newErrors[action.payload];
@@ -159,26 +159,26 @@ const appReducer = (state, action) => {
         ...state,
         errors: newErrors,
       };
-      
-      
+
+
     case ACTIONS.SET_SOCKET:
       return {
         ...state,
         socket: action.payload,
       };
-      
+
     case ACTIONS.SET_CONNECTION_STATUS:
       return {
         ...state,
         isConnected: action.payload,
       };
-      
+
     case ACTIONS.ADD_NOTIFICATION:
       return {
         ...state,
         notifications: [action.payload, ...state.notifications],
       };
-      
+
     case ACTIONS.UPDATE_GROUP:
       return {
         ...state,
@@ -186,7 +186,7 @@ const appReducer = (state, action) => {
           group.id === action.payload.id ? { ...group, ...action.payload } : group
         ),
       };
-      
+
     case ACTIONS.UPDATE_SESSION:
       return {
         ...state,
@@ -194,7 +194,7 @@ const appReducer = (state, action) => {
           session.id === action.payload.id ? { ...session, ...action.payload } : session
         ),
       };
-      
+
     default:
       return state;
   }
@@ -269,7 +269,7 @@ export const AppProvider = ({ children }) => {
       if (state.socket) {
         state.socket.disconnect();
       }
-      
+
       await authAPI.logout();
     } catch (error) {
       // Error durante logout
@@ -300,7 +300,9 @@ export const AppProvider = ({ children }) => {
         dispatch({ type: ACTIONS.SET_GROUPS, payload: parsed });
       }
     } catch (error) {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: { key: 'groups', error: error.message } });
+      console.error('Error loading groups:', error);
+      const errorMessage = error.message || 'No se pudieron cargar los grupos. Verifica tu conexión e inténtalo nuevamente.';
+      dispatch({ type: ACTIONS.SET_ERROR, payload: { key: 'groups', error: errorMessage } });
     } finally {
       dispatch({ type: ACTIONS.SET_LOADING, payload: { key: 'groups', value: false } });
     }
@@ -321,7 +323,9 @@ export const AppProvider = ({ children }) => {
       dispatch({ type: ACTIONS.SET_SESSIONS, payload: sessions });
       return sessions;
     } catch (error) {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: { key: 'sessions', error: error.message } });
+      console.error('Error loading sessions:', error);
+      const errorMessage = error.message || 'No se pudieron cargar las sesiones. Verifica tu conexión e inténtalo nuevamente.';
+      dispatch({ type: ACTIONS.SET_ERROR, payload: { key: 'sessions', error: errorMessage } });
       throw error;
     } finally {
       dispatch({ type: ACTIONS.SET_LOADING, payload: { key: 'sessions', value: false } });
@@ -342,7 +346,9 @@ export const AppProvider = ({ children }) => {
             : [];
       dispatch({ type: ACTIONS.SET_NOTIFICATIONS, payload: notifications });
     } catch (error) {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: { key: 'notifications', error: error.message } });
+      console.error('Error loading notifications:', error);
+      const errorMessage = error.message || 'No se pudieron cargar las notificaciones.';
+      dispatch({ type: ACTIONS.SET_ERROR, payload: { key: 'notifications', error: errorMessage } });
     } finally {
       dispatch({ type: ACTIONS.SET_LOADING, payload: { key: 'notifications', value: false } });
     }
@@ -355,7 +361,7 @@ export const AppProvider = ({ children }) => {
         achievementsAPI.getAchievements(),
         achievementsAPI.getUserAchievements()
       ]);
-      
+
       const achievementsPayload = extractResponseData(achievementsResponse);
       const userAchievementsPayload = extractResponseData(userAchievementsResponse);
 
@@ -383,11 +389,13 @@ export const AppProvider = ({ children }) => {
           userAchievements = userAchievementsPayload.data;
         }
       }
-      
+
       dispatch({ type: ACTIONS.SET_ACHIEVEMENTS, payload: achievements });
       dispatch({ type: ACTIONS.SET_USER_ACHIEVEMENTS, payload: userAchievements });
     } catch (error) {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: { key: 'achievements', error: error.message } });
+      console.error('Error loading achievements:', error);
+      const errorMessage = error.message || 'No se pudieron cargar los logros.';
+      dispatch({ type: ACTIONS.SET_ERROR, payload: { key: 'achievements', error: errorMessage } });
     } finally {
       dispatch({ type: ACTIONS.SET_LOADING, payload: { key: 'achievements', value: false } });
     }
@@ -487,10 +495,10 @@ export const AppProvider = ({ children }) => {
     const token = getAuthToken();
     if (token) {
       hasLoadedUserRef.current = true;
-      
+
       // Hay token, intentar cargar usuario
       dispatch({ type: ACTIONS.SET_LOADING, payload: { key: 'user', value: true } });
-      
+
       authAPI.getMe()
         .then((response) => {
           const payload = extractResponseData(response);
@@ -508,14 +516,12 @@ export const AppProvider = ({ children }) => {
           // Solo limpiar token si es un error de autenticación (401)
           // No limpiar si es error de red u otro tipo de error
           const isAuthError = error.response?.status === 401 || error.status === 401;
-          
+
           if (isAuthError) {
-            console.warn('Token inválido o expirado:', error);
             clearAuthToken();
             dispatch({ type: ACTIONS.LOGOUT });
           } else {
             // Error de red u otro tipo - mantener el token
-            console.warn('Error cargando usuario (manteniendo sesión):', error);
             // No limpiar el token, podría ser un problema temporal de red
           }
         })
@@ -551,29 +557,29 @@ export const AppProvider = ({ children }) => {
         const response = await usersAPI.updateProfile(updates);
         const payload = extractResponseData(response);
         const updatedUserData = payload?.user || payload;
-        
+
         if (updatedUserData) {
           // Actualizar el usuario en el estado con los nuevos datos
           // Asegurarse de que state.user existe antes de hacer spread
           const currentUser = state.user || {};
-          dispatch({ 
-            type: ACTIONS.SET_USER, 
-            payload: { ...currentUser, ...updatedUserData } 
+          dispatch({
+            type: ACTIONS.SET_USER,
+            payload: { ...currentUser, ...updatedUserData }
           });
           return updatedUserData;
         }
       }
-      
+
       // Si no hay actualizaciones, solo recargar el perfil completo
       const response = await usersAPI.getProfile();
       const payload = extractResponseData(response);
       const userData = payload?.user || payload;
-      
+
       if (userData) {
         dispatch({ type: ACTIONS.SET_USER, payload: userData });
         return userData;
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error actualizando usuario:', error);
@@ -586,7 +592,7 @@ export const AppProvider = ({ children }) => {
   const value = {
     // Estado
     ...state,
-    
+
     // Acciones
     login,
     register,
@@ -597,7 +603,7 @@ export const AppProvider = ({ children }) => {
     loadAchievements,
     loadUserData,
     updateUser,
-    
+
     // Utilidades
     setLoading: (key, value) => dispatch({ type: ACTIONS.SET_LOADING, payload: { key, value } }),
     setError: (key, error) => dispatch({ type: ACTIONS.SET_ERROR, payload: { key, error } }),
@@ -613,13 +619,13 @@ export const useApp = () => {
   if (!context) {
     throw new Error('useApp debe usarse dentro de un AppProvider');
   }
-  
+
   // Asegurarse de que el usuario tenga la propiedad isAdmin
   const userWithAdmin = context.user ? {
     ...context.user,
     isAdmin: context.user.role === 'admin' || context.user.is_admin || false
   } : null;
-  
+
   return {
     ...context,
     state: {

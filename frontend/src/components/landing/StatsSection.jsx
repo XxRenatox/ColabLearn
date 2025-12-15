@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, MessageCircle, Globe, Trophy, Sparkles } from "lucide-react";
+import { Users, MessageCircle, Trophy, Sparkles } from "lucide-react";
 import { StatsCard } from "../ui/cards/common/StatsCard";
 
 const StatsSection = () => {
@@ -7,14 +7,12 @@ const StatsSection = () => {
   const [stats, setStats] = useState({
     students: 0,
     groups: 0,
-    countries: 0,
     success: 0,
   });
 
   const finalStats = {
     students: 52847,
     groups: 8943,
-    countries: 127,
     success: 96,
   };
 
@@ -77,7 +75,7 @@ const StatsSection = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-3 gap-8">
           <StatsCard
             icon={Users}
             value={`${stats.students.toLocaleString()}+`}
@@ -95,19 +93,11 @@ const StatsSection = () => {
             isVisible={isVisible}
           />
           <StatsCard
-            icon={Globe}
-            value={`${stats.countries}+`}
-            label="Países"
-            iconGradient="from-blue-400 to-indigo-400"
-            delay={400}
-            isVisible={isVisible}
-          />
-          <StatsCard
             icon={Trophy}
             value={`${stats.success}%`}
             label="Mejora en Calificaciones"
             iconGradient="from-purple-400 to-pink-400"
-            delay={600}
+            delay={400}
             isVisible={isVisible}
           />
         </div>

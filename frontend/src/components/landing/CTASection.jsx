@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "./ui/Components";
-import { ArrowRight, Check, Shield } from "lucide-react";
+import { ArrowRight, Check, Shield, Rocket } from "lucide-react";
 
 const CTASection = ({ isAuthenticated, onAuthAction }) => {
   return (
@@ -40,7 +40,8 @@ const CTASection = ({ isAuthenticated, onAuthAction }) => {
             size="lg"
             className="text-xl px-16 py-6 flex items-center justify-center space-x-3 hover:bg-gradient-to-r hover:from-cyan-500 hover:to-purple-500 hover:border-transparent"
           >
-            <span>{isAuthenticated ? "🚀 Ir al Dashboard" : "🚀 Crear Cuenta Gratis"}</span>
+            <Rocket className="w-5 h-5" />
+            <span>{isAuthenticated ? "Ir al Dashboard" : "Crear Cuenta Gratis"}</span>
             <ArrowRight className="w-6 h-6" />
           </Button>
         </div>

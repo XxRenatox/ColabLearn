@@ -8,13 +8,14 @@ import { useSessionNotifications, requestNotificationPermission } from '../../..
 import { useSessionCategorization } from '../sessions/useSessionCategorization';
 import ActiveSessionCard from '../../../ui/cards/sessions/ActiveSessionCard';
 import SessionCard from '../../../ui/cards/sessions/SessionCard';
-import { 
-  Calendar, 
+import {
+  Calendar,
   Video,
   Plus,
   Filter,
   Search,
   CheckCircle,
+
 } from 'lucide-react';
 
 const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, onSessionsUpdated }) => {
@@ -49,7 +50,7 @@ const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, o
   const handleSessionCreated = async (newSession) => {
     // Cerrar el modal primero
     setShowCreateModal(false);
-    
+
     // Recargar sesiones - hacer la petición inmediatamente
     if (onSessionsUpdated) {
       try {
@@ -57,7 +58,7 @@ const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, o
       } catch (error) {
         console.error('Error recargando sesiones:', error);
       }
-      
+
       // Recargar nuevamente después de un breve delay para asegurar que la sesión esté disponible
       setTimeout(async () => {
         if (onSessionsUpdated) {
@@ -97,13 +98,13 @@ const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, o
   // Filtrar sesiones por búsqueda y tipo
   const filterSessions = (sessionList) => {
     return sessionList.filter(session => {
-      const matchesSearch = searchQuery === '' || 
+      const matchesSearch = searchQuery === '' ||
         session.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         session.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         session.group_name?.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       const matchesType = filterType === 'all' || session.type === filterType;
-      
+
       return matchesSearch && matchesType;
     });
   };
@@ -123,6 +124,8 @@ const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, o
       addToast(errorMessage, 'error');
     }
   };
+
+
 
   return (
     <div className="w-full p-3 sm:p-6">
@@ -165,7 +168,8 @@ const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, o
             <option value="discussion">Discusión</option>
             <option value="tutoring">Tutoría</option>
           </select>
-          <button 
+
+          <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
           >
@@ -187,17 +191,15 @@ const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, o
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                activeTab === tab.id
+              className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               {tab.label}
               {tab.count !== null && (
-                <span className={`ml-1.5 sm:ml-2 py-0.5 px-1.5 sm:px-2 rounded-full text-[10px] sm:text-xs ${
-                  activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
-                }`}>
+                <span className={`ml-1.5 sm:ml-2 py-0.5 px-1.5 sm:px-2 rounded-full text-[10px] sm:text-xs ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                  }`}>
                   {tab.count}
                 </span>
               )}
@@ -213,9 +215,9 @@ const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, o
             {filterSessions(categorizedSessions.upcoming).length > 0 ? (
               <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
                 {filterSessions(categorizedSessions.upcoming).map((session, index) => (
-                  <SessionCard 
-                    key={session.id} 
-                    session={session} 
+                  <SessionCard
+                    key={session.id}
+                    session={session}
                     type="upcoming"
                     onJoinSession={handleJoinSession}
                     sessionActionLoading={sessionActionLoading}
@@ -241,8 +243,8 @@ const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, o
             {filterSessions(categorizedSessions.active).length > 0 ? (
               <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
                 {filterSessions(categorizedSessions.active).map(session => (
-                  <ActiveSessionCard 
-                    key={session.id} 
+                  <ActiveSessionCard
+                    key={session.id}
                     session={session}
                     onJoinSession={handleJoinSession}
                     sessionActionLoading={sessionActionLoading}
@@ -264,9 +266,9 @@ const StudySessionsPanel = ({ user, sessions = [], groups = [], onJoinSession, o
             {filterSessions(categorizedSessions.completed).length > 0 ? (
               <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
                 {filterSessions(categorizedSessions.completed).map(session => (
-                  <SessionCard 
-                    key={session.id} 
-                    session={session} 
+                  <SessionCard
+                    key={session.id}
+                    session={session}
                     type="completed"
                     onViewSummary={(session) => {
                       setSelectedSessionForSummary(session);

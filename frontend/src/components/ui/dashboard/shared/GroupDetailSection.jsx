@@ -16,7 +16,7 @@ import ResourcesSection from './ResourcesSection';
 const GroupDetailSection = ({ group, groupId, onBack }) => {
   const { user, loadGroups } = useApp();
   const { addToast } = useToast();
-  const { getResourcesByGroup, downloadResource } = useResources();
+  const { getResourcesByGroup, downloadResource, uploadResource } = useResources();
 
   const [currentGroup, setCurrentGroup] = useState(group || null);
   const [isLoading, setIsLoading] = useState(!group);
@@ -24,16 +24,17 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
   const [groupMembers, setGroupMembers] = useState([]);
   const [pendingMembers, setPendingMembers] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadingResource, setUploadingResource] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   // Socket.IO hooks
   const { joinGroup, leaveGroup } = useSocket();
-  
+
   const lastLoadedIdRef = useRef(null);
 
   // Check user membership with better error handling
   const { isAdmin: userIsAdmin } = useApp();
-  
+
   // Helper para extraer datos
   const extractData = (response) => {
     if (!response || typeof response !== 'object') return response;
@@ -59,7 +60,7 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
   const isAdmin = Boolean(userIsAdmin || currentMember?.role === 'admin');
   const isModerator = Boolean(currentMember?.role === 'moderator' || isAdmin);
   const isMember = Boolean(currentMember) || isAdmin;
-  
+
 
   // Cargar datos del grupo
   const loadAllGroupData = useCallback(async (targetGroupId, force = false) => {
@@ -73,7 +74,7 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
         lastLoadedIdRef.current = null; // Forzar recarga
       }
       lastLoadedIdRef.current = targetGroupId;
-      
+
       const [groupRes, resourcesRes] = await Promise.all([
         groupsAPI.getGroup(targetGroupId),
         resourcesAPI.getResources({ groupId: targetGroupId }),
@@ -81,41 +82,40 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
 
       const groupPayload = extractData(groupRes);
       const groupData = groupPayload?.group || groupPayload || {};
-      
+
       // Asegurarse de que los miembros siempre sean un array
       const members = normalizeMembers(groupData.members);
-      
+
       // Calcular si el usuario es admin o moderador DESPUÉS de cargar los miembros
       const currentUserMember = members.find((m) => (m.user_id || m.user?.id) === user?.id) || null;
       const userIsAdminInGroup = Boolean(userIsAdmin || currentUserMember?.role === 'admin');
       const userIsModeratorInGroup = Boolean(currentUserMember?.role === 'moderator' || userIsAdminInGroup);
-      
+
       const currentUserIsMember = Boolean(
         user && members.some((m) => (m.user_id || m.user?.id) === user.id)
       );
-      
+
       // Actualizar el estado del grupo
       setCurrentGroup(prev => ({
         ...prev,
         ...groupData,
         members
       }));
-      
+
       // Actualizar la lista de miembros
       setGroupMembers(members);
 
       const resourcesPayload = extractData(resourcesRes);
       const allResources = resourcesPayload?.resources || resourcesPayload || [];
-      
-      // Filtrar solo los recursos que pertenecen a este grupo específico Y son públicos
+
+      // Filtrar solo por groupId (el backend ya maneja la seguridad/visibilidad)
       const groupResourcesFiltered = Array.isArray(allResources)
         ? allResources.filter(resource => {
-            const resourceGroupId = resource.group_id || resource.group?.id || resource.group_id;
-            const isPublic = resource.is_public === true;
-            return resourceGroupId === targetGroupId && isPublic;
-          })
+          const resourceGroupId = resource.group_id || resource.group?.id || resource.group_id;
+          return resourceGroupId === targetGroupId;
+        })
         : [];
-      
+
       setGroupResources(prevResources => {
         return JSON.stringify(prevResources) === JSON.stringify(groupResourcesFiltered)
           ? prevResources
@@ -128,10 +128,10 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
           const pendingRes = await groupsAPI.getPendingMembers(targetGroupId);
           const pendingPayload = extractData(pendingRes);
           const pendingData = pendingPayload?.pendingMembers || pendingPayload?.data?.pendingMembers || pendingPayload || [];
-          console.log('[GroupDetailSection] Solicitudes pendientes cargadas:', pendingData);
+
           setPendingMembers(Array.isArray(pendingData) ? pendingData : []);
         } catch (err) {
-          console.error('[GroupDetailSection] Error cargando solicitudes pendientes:', err);
+
           // Si no tiene permisos o no hay solicitudes, simplemente no mostrar nada
           setPendingMembers([]);
         }
@@ -145,7 +145,7 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
       } else if (groupData.id) {
         leaveGroup(groupData.id);
       }
-      
+
     } catch (err) {
       addToast('Error al cargar los datos del grupo', 'error');
     } finally {
@@ -161,7 +161,7 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
       const timeoutId = setTimeout(() => {
         loadAllGroupData(targetId);
       }, 0);
-      
+
       return () => {
         clearTimeout(timeoutId);
         controller.abort();
@@ -183,21 +183,21 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
   const handleApproveMember = async (memberId) => {
     try {
       const response = await groupsAPI.approveMember(currentGroup.id, memberId);
-      
+
       // apiRequest devuelve response.data directamente, que contiene { success, message }
       addToast(
-        response?.message || 'Solicitud aprobada exitosamente', 
+        response?.message || 'Solicitud aprobada exitosamente',
         'success'
       );
-      
+
       // Recargar datos del grupo automáticamente (forzar recarga)
       await loadAllGroupData(currentGroup.id, true);
-      
+
       // Recargar grupos en AppContext para actualizar cards en otras secciones
       if (loadGroups) {
         await loadGroups();
       }
-      
+
       setShowRequestModal(false);
       setSelectedRequest(null);
     } catch (error) {
@@ -209,21 +209,21 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
   const handleRejectMember = async (memberId) => {
     try {
       const response = await groupsAPI.rejectMember(currentGroup.id, memberId);
-      
+
       // apiRequest devuelve response.data directamente, que contiene { success, message }
       addToast(
-        response?.message || 'Solicitud rechazada exitosamente', 
+        response?.message || 'Solicitud rechazada exitosamente',
         'success'
       );
-      
+
       // Recargar datos del grupo automáticamente (forzar recarga)
       await loadAllGroupData(currentGroup.id, true);
-      
+
       // Recargar grupos en AppContext para actualizar cards en otras secciones
       if (loadGroups) {
         await loadGroups();
       }
-      
+
       setShowRequestModal(false);
       setSelectedRequest(null);
     } catch (error) {
@@ -243,6 +243,21 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
       await loadAllGroupData(currentGroup.id, true);
     } catch (error) {
       addToast('Error al descargar el recurso', 'error');
+    }
+  };
+
+  const handleUploadResource = async (formData) => {
+    try {
+      setUploadingResource(true);
+      await uploadResource(formData);
+      // No need to show toast here if uploadResource/hook does it, but the hook does.
+      await loadAllGroupData(currentGroup.id, true);
+      setShowUploadModal(false);
+    } catch (error) {
+      // Error handled in hook or here
+
+    } finally {
+      setUploadingResource(false);
     }
   };
 
@@ -308,7 +323,7 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
             Chat del Grupo
           </h3>
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex-1 min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]">
-            <GroupChat 
+            <GroupChat
               groupId={currentGroup?.id}
               groupName={currentGroup?.name}
               isMember={isMember}
@@ -361,7 +376,8 @@ const GroupDetailSection = ({ group, groupId, onBack }) => {
           <UploadResourceModal
             isOpen={showUploadModal}
             onClose={() => setShowUploadModal(false)}
-            onUpload={() => addToast('Recurso subido correctamente', 'success')}
+            onUpload={handleUploadResource}
+            uploading={uploadingResource}
             groupId={currentGroup.id}
           />
         )}

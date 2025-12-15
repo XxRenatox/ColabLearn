@@ -26,16 +26,16 @@ const buildWhereClause = async (table, buildQuery) => {
   try {
     // Crear un query builder temporal para extraer los filtros
     const tempBuilder = supabaseAdmin.from(table);
-    
+
     // Aplicar buildQuery para obtener los filtros
     const modifiedQuery = buildQuery(tempBuilder);
-    
+
     // Intentar obtener la query string de Supabase
     // Como no podemos obtener directamente la query SQL de Supabase,
     // vamos a usar un enfoque diferente: obtener los datos filtrados y contar
     return null; // Retornar null para indicar que debemos usar Supabase
   } catch (error) {
-    console.warn(`Error construyendo WHERE clause para ${table}:`, error.message);
+
     return null;
   }
 };
@@ -44,12 +44,12 @@ const getCount = async (table, buildQuery) => {
   try {
     // Crear query builder
     let queryBuilder = supabaseAdmin.from(table);
-    
+
     if (!queryBuilder) {
-      console.error(`No se pudo crear query builder para ${table}`);
+
       return 0;
     }
-    
+
     // Aplicar filtros si existen
     if (typeof buildQuery === 'function') {
       try {
@@ -62,7 +62,7 @@ const getCount = async (table, buildQuery) => {
           // Continuar con el queryBuilder original
         }
       } catch (buildError) {
-        console.warn(`Error aplicando buildQuery para ${table}:`, buildError.message);
+
         // Si buildQuery falla, crear un nuevo query builder sin filtros
         queryBuilder = supabaseAdmin.from(table);
       }
@@ -74,24 +74,24 @@ const getCount = async (table, buildQuery) => {
         .select('*', { count: 'exact', head: true });
 
       if (!error && count !== null && count !== undefined && typeof count === 'number') {
-        console.log(`getCount: éxito con Supabase count para ${table}, count=${count}`);
+
         return Number(count);
       }
-      
+
       if (error) {
-        console.warn(`getCount: error con Supabase count para ${table}:`, error.message);
+
       } else if (count === null) {
-        console.log(`getCount: count es null para ${table} (probablemente 0 registros)`);
+
         return 0;
       }
     } catch (supabaseError) {
-      console.warn(`getCount: Supabase count falló para ${table}, usando método alternativo:`, supabaseError.message);
+
     }
 
     // Método 2: Obtener datos filtrados y contar manualmente (más confiable)
     // Recrear el query builder con los mismos filtros
     let altQueryBuilder = supabaseAdmin.from(table);
-    
+
     // Aplicar los mismos filtros si existen
     if (typeof buildQuery === 'function') {
       try {
@@ -100,24 +100,24 @@ const getCount = async (table, buildQuery) => {
           altQueryBuilder = modifiedAltQuery;
         }
       } catch (buildError) {
-        console.warn(`Error aplicando buildQuery en método alternativo para ${table}:`, buildError.message);
+
         // Si falla, usar query builder sin filtros
       }
     }
-    
+
     // Obtener solo el campo id para minimizar datos transferidos
     const { data, error } = await altQueryBuilder.select('id').limit(10000);
-    
+
     if (error) {
-      console.error(`getCount error obteniendo datos para ${table}:`, error);
+
       return 0;
     }
-    
+
     const result = data ? data.length : 0;
-    console.log(`getCount: método alternativo para ${table}, result=${result}`);
+
     return result;
   } catch (error) {
-    console.error(`Error completo en getCount para ${table}:`, error);
+
     return 0;
   }
 };
@@ -126,11 +126,11 @@ const safeGetCount = async (table, buildQuery) => {
   try {
     const count = await getCount(table, buildQuery);
     const queryDesc = buildQuery ? 'with filter' : 'without filter';
-    console.log(`✓ Count for ${table} (${queryDesc}):`, count, typeof count);
+
     return count;
   } catch (error) {
-    console.error(`✗ Error obteniendo conteo de ${table}:`, error.message);
-    console.error('Error details:', error);
+
+
     // Retornar 0 en caso de error para no romper el dashboard
     return 0;
   }
@@ -152,21 +152,21 @@ router.get(
         const { data, error } = await supabaseAdmin
           .from(table)
           .select(selectFields);
-        
+
         if (error) {
-          console.error(`Error obteniendo datos de ${table}:`, error);
+
           return [];
         }
-        
+
         return data || [];
       } catch (error) {
-        console.error(`Error en getAllData para ${table}:`, error.message);
+
         return [];
       }
     };
 
-    console.log('Obteniendo todos los datos para cálculos...');
-    
+
+
     // Obtener todos los datos necesarios en paralelo
     const [
       allUsers,
@@ -184,7 +184,7 @@ router.get(
       getAllData('file_downloads', 'id'),
     ]);
 
-    console.log(`Datos obtenidos: users=${allUsers.length}, groups=${allGroups.length}, sessions=${allSessions.length}, files=${allFiles.length}, forums=${allForums.length}`);
+
 
     // Calcular conteos de usuarios
     const totalUsers = allUsers.length;
@@ -217,7 +217,7 @@ router.get(
     const totalResources = allFiles.length;
     const publicResources = allFiles.filter(f => f.is_public === true).length;
     const privateResources = allFiles.filter(f => f.is_public === false || f.is_public === null).length;
-    
+
     // Calcular recursos por tipo
     const resourcesByType = {};
     allFiles.forEach(file => {
@@ -230,26 +230,8 @@ router.get(
 
     // Calcular total de descargas
     const totalDownloads = allFileDownloads.length;
-    
-    console.log('Cálculos completados:', {
-      totalUsers,
-      activeUsersTrue,
-      activeUsersNull,
-      activeUsers: activeUsers,
-      inactiveUsers,
-      newUsersLast7Days,
-      totalGroups,
-      activeGroups,
-      pendingGroups,
-      totalSessions,
-      upcomingSessions,
-      pastSessions,
-      totalResources,
-      publicResources,
-      privateResources,
-      totalForums,
-      totalDownloads,
-    });
+
+
 
     // Obtener datos recientes para mostrar en el dashboard
     const safeQuery = async (queryFn, defaultValue = []) => {
@@ -257,7 +239,7 @@ router.get(
         const result = await queryFn();
         return result || defaultValue;
       } catch (error) {
-        console.error('Error en consulta:', error.message);
+
         return defaultValue;
       }
     };
@@ -329,7 +311,7 @@ router.get(
           });
         }
       } catch (error) {
-        console.error('Error calculando member_count:', error.message);
+
         // Continuar sin member_count
       }
     }
@@ -403,7 +385,7 @@ router.get(
       },
     };
 
-    console.log('Dashboard summaries being sent:', JSON.stringify(summariesData, null, 2));
+
 
     res.json({
       success: true,
@@ -569,13 +551,13 @@ router.patch(
         const TokenBlacklistService = require('../services/tokenBlacklistService');
         await TokenBlacklistService.invalidateUserOnDeactivation(id);
         await TokenBlacklistService.blacklistAllUserTokens(id, 'account_deactivated');
-        
+
         // También revocar refresh tokens si es posible
         const RefreshTokenService = require('../services/refreshTokenService');
         await RefreshTokenService.revokeAllUserTokens(id);
       } catch (tokenError) {
         // Log del error pero no fallar la operación
-        console.error('Error invalidando tokens del usuario:', tokenError);
+
       }
     }
 
@@ -1055,12 +1037,12 @@ router.get(
 
     // Manejar errores
     if (filesResult.error) {
-      console.error('Error obteniendo archivos:', filesResult.error);
+
       throw new AppError('Error obteniendo estadísticas de recursos', 500);
     }
 
     if (downloadsResult.error) {
-      console.error('Error obteniendo descargas:', downloadsResult.error);
+
       throw new AppError('Error obteniendo estadísticas de descargas', 500);
     }
 
@@ -1623,8 +1605,8 @@ router.get(
 
     if (groups) {
       groups.forEach((group) => {
-        if (!search || group.name.toLowerCase().includes(search.toLowerCase()) || 
-            group.subject?.toLowerCase().includes(search.toLowerCase())) {
+        if (!search || group.name.toLowerCase().includes(search.toLowerCase()) ||
+          group.subject?.toLowerCase().includes(search.toLowerCase())) {
           logs.push({
             id: `group-${group.id}`,
             type: 'group_created',
@@ -1742,7 +1724,7 @@ router.get(
       safeGetCount('notifications', (q) => q.gte('created_at', last7Days.toISOString())),
       safeGetCount('notifications', (q) => q.gte('created_at', last30Days.toISOString())),
       safeGetCount('groups', (q) => q.gte('created_at', last7Days.toISOString())),
-      safeGetCount('user_study_sessions', (q) => 
+      safeGetCount('user_study_sessions', (q) =>
         q.not('completed_at', 'is', null).gte('completed_at', last7Days.toISOString())
       ),
     ]);

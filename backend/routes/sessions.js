@@ -1,9 +1,9 @@
 const express = require('express');
 const { body, query, validationResult } = require('express-validator');
 const { supabase, supabaseAdmin, createAuthenticatedClient } = require('../config/database');
-const { 
-  asyncHandler, 
-  AppError, 
+const {
+  asyncHandler,
+  AppError,
   createValidationError,
   createNotFoundError,
   createForbiddenError
@@ -190,7 +190,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     .single();
 
   if (error || !session) {
-    throw createNotFoundError('No se pudo encontrar la sesión solicitada');
+    throw createNotFoundError('No se encontró la sesión. Verifica que el ID sea correcto y que tengas acceso al grupo.');
   }
 
   // Verificar que el usuario es miembro del grupo o organizador
@@ -203,7 +203,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     .single();
 
   if (memberError || !groupMember) {
-    throw createForbiddenError('No tienes acceso a esta sesión');
+    throw createForbiddenError('No tienes acceso a esta sesión. Debes ser miembro del grupo para ver sus sesiones.');
   }
 
   res.json({
@@ -227,17 +227,17 @@ router.post('/', [
         if (!value || typeof value !== 'string') {
           throw new Error('Por favor, ingresa una fecha y hora válidas');
         }
-        
+
         const date = new Date(value);
         if (isNaN(date.getTime())) {
           throw new Error('La fecha y hora ingresadas no son válidas. Por favor, verifica el formato');
         }
-        
+
         // Validar que tenga el formato básico esperado (debe contener T)
         if (!value.includes('T')) {
           throw new Error('El formato de fecha no es correcto. Por favor, selecciona una fecha y hora válidas');
         }
-        
+
         return true;
       } catch (error) {
         throw new Error(error.message || 'Por favor, ingresa una fecha y hora válidas para la sesión');
@@ -252,13 +252,8 @@ router.post('/', [
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     // Log detallado de errores para debugging
-    console.log('Errores de validación:', JSON.stringify(errors.array(), null, 2));
-    console.log('Datos recibidos:', {
-      title: req.body.title,
-      group_id: req.body.group_id,
-      scheduled_date: req.body.scheduled_date,
-      duration: req.body.duration
-    });
+
+
     throw createValidationError('Por favor, verifica que todos los campos estén completos correctamente', errors.array());
   }
 
@@ -304,24 +299,24 @@ router.post('/', [
   // Esta fecha se interpreta como UTC, pero representa la hora local del usuario
   const sessionDate = new Date(scheduled_date);
   const now = new Date();
-  
+
   // Validar que la fecha sea válida
   if (isNaN(sessionDate.getTime())) {
     throw createValidationError('La fecha seleccionada no es válida. Por favor, verifica que hayas ingresado una fecha y hora correctas.');
   }
-  
+
   // Verificar que la fecha no sea en el pasado
   // IMPORTANTE: La fecha viene del frontend tratada como UTC pero representa hora local del usuario
   // Por lo tanto, validamos con márgenes flexibles para compensar diferencias de zona horaria
-  
-  // Mínimo: debe ser al menos 30 minutos en el futuro
-  const minMargin = 30 * 60 * 1000; // 30 minutos mínimo
+
+  // Mínimo: debe ser al menos 4 horas en el futuro
+  const minMargin = 4 * 60 * 60 * 1000; // 4 horas mínimo
   const minAllowedDate = new Date(now.getTime() + minMargin);
-  
-  // Validar que la fecha esté al menos 30 minutos en el futuro
+
+  // Validar que la fecha esté al menos 4 horas en el futuro
   if (sessionDate.getTime() <= minAllowedDate.getTime()) {
     const diffMinutes = Math.round((minAllowedDate.getTime() - sessionDate.getTime()) / (60 * 1000));
-    throw createValidationError(`Por favor, programa la sesión con al menos 30 minutos de anticipación. La fecha seleccionada está muy cerca del momento actual.`);
+    throw createValidationError(`Por favor, programa la sesión con al menos 4 horas de anticipación. La fecha seleccionada está muy cerca del momento actual.`);
   }
 
   // Crear sesión
@@ -365,6 +360,8 @@ router.post('/', [
     data: { session }
   });
 }));
+
+
 
 // @route   PUT /api/sessions/:id
 // @desc    Actualizar sesión
@@ -425,7 +422,7 @@ router.put('/:id', [
     const sessionDate = new Date(existingSession.scheduled_date);
     const now = new Date();
     const oneHourBefore = new Date(sessionDate.getTime() - (60 * 60 * 1000)); // 1 hora antes
-    
+
     if (now >= oneHourBefore) {
       throw createValidationError('No puedes editar esta sesión. Solo puedes hacer cambios hasta 1 hora antes de que comience la sesión.');
     }
@@ -463,6 +460,19 @@ router.put('/:id', [
     throw new AppError('Error actualizando sesión: ' + error.message, 500);
   }
 
+  // Emit socket event for notes updates
+  if (updateData.session_notes) {
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`session:${sessionId}`).emit('sessionNotesUpdated', {
+        sessionId,
+        notes: typeof updateData.session_notes === 'object'
+          ? updateData.session_notes.notes
+          : updateData.session_notes
+      });
+    }
+  }
+
   // Obtener miembros del grupo y asistentes de la sesión para enviar notificaciones
   const [groupMembersResult, sessionAttendeesResult] = await Promise.all([
     supabaseAdmin
@@ -480,7 +490,7 @@ router.put('/:id', [
 
   const groupMembers = groupMembersResult.data || [];
   const sessionAttendees = sessionAttendeesResult.data || [];
-  
+
   // Combinar IDs únicos de miembros y asistentes
   const userIdsToNotify = new Set([
     ...groupMembers.map(m => m.user_id),
@@ -934,4 +944,380 @@ router.patch('/:id/status', [
   });
 }));
 
+// @route   GET /api/sessions/:id/resources
+// @desc    Get resources linked to a session
+// @access  Private
+router.get('/:id/resources', asyncHandler(async (req, res) => {
+  const sessionId = req.params.id;
+  const userId = req.user.id;
+
+  // Verify session exists and user has access
+  const { data: session, error: sessionError } = await supabaseAdmin
+    .from('sessions')
+    .select('id, group_id')
+    .eq('id', sessionId)
+    .single();
+
+  if (sessionError || !session) {
+    throw createNotFoundError('Sesión no encontrada');
+  }
+
+  // Verify user is member of the group
+  const { data: member } = await supabaseAdmin
+    .from('group_members')
+    .select('id')
+    .eq('group_id', session.group_id)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single();
+
+  if (!member) {
+    throw createForbiddenError('No tienes acceso a esta sesión');
+  }
+
+  // Get resources linked to session via files table
+  const { data: resources, error: resourcesError } = await supabaseAdmin
+    .from('files')
+    .select(`
+      id, name, resource_type, size, is_public, created_at, uploaded_by, mime_type, storage_path, original_name,
+      uploader:uploaded_by (id, name, avatar, university, career)
+    `)
+    .eq('session_id', sessionId)
+    .eq('is_deleted', false);
+
+  if (resourcesError) {
+    throw new AppError('Error obteniendo recursos: ' + resourcesError.message, 500);
+  }
+
+  res.json({
+    success: true,
+    data: { resources: resources || [] }
+  });
+}));
+
+// @route   POST /api/sessions/:id/resources/link
+// @desc    Link existing resource to session
+// @access  Private
+router.post('/:id/resources/link', [
+  body('file_id').isUUID().withMessage('ID de archivo inválido')
+], asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw createValidationError('Datos inválidos', errors.array());
+  }
+
+  const sessionId = req.params.id;
+  const userId = req.user.id;
+  const { file_id } = req.body;
+
+  // Verify session exists and user has access
+  const { data: session, error: sessionError } = await supabaseAdmin
+    .from('sessions')
+    .select('id, group_id, organizer_id')
+    .eq('id', sessionId)
+    .single();
+
+  if (sessionError || !session) {
+    throw createNotFoundError('Sesión no encontrada');
+  }
+
+  // Verify user is member or organizer
+  const { data: member } = await supabaseAdmin
+    .from('group_members')
+    .select('id, role')
+    .eq('group_id', session.group_id)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single();
+
+  if (!member && session.organizer_id !== userId) {
+    throw createForbiddenError('No tienes permiso para agregar recursos');
+  }
+
+  // Verify file exists and user has access to it
+  const { data: file, error: fileError } = await supabaseAdmin
+    .from('files')
+    .select('id, name, group_id, is_public')
+    .eq('id', file_id)
+    .single();
+
+  if (fileError || !file) {
+    throw createNotFoundError('Archivo no encontrado');
+  }
+
+  // Verify file is either public or belongs to the same group
+  if (!file.is_public && file.group_id !== session.group_id) {
+    throw createForbiddenError('No tienes acceso a este archivo');
+  }
+
+  // Link resource to session by updating the file's session_id
+  const { data: updatedFile, error: linkError } = await supabaseAdmin
+    .from('files')
+    .update({ session_id: sessionId })
+    .eq('id', file_id)
+    .select()
+    .single();
+
+  if (linkError) {
+    throw new AppError('Error agregando recurso: ' + linkError.message, 500);
+  }
+
+  // Emit socket event
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`session:${sessionId}`).emit('sessionResourceAdded', {
+      sessionId,
+      resource: updatedFile
+    });
+  }
+
+  res.status(201).json({
+    success: true,
+    message: 'Recurso agregado a la sesión',
+    data: { resource: updatedFile }
+  });
+}));
+
+// @route   DELETE /api/sessions/:id/resources/:fileId
+// @desc    Unlink resource from session
+// @access  Private
+router.delete('/:id/resources/:fileId', asyncHandler(async (req, res) => {
+  const sessionId = req.params.id;
+  const fileId = req.params.fileId;
+  const userId = req.user.id;
+
+  // Verify session exists and user is organizer or admin
+  const { data: session, error: sessionError } = await supabaseAdmin
+    .from('sessions')
+    .select('id, group_id, organizer_id')
+    .eq('id', sessionId)
+    .single();
+
+  if (sessionError || !session) {
+    throw createNotFoundError('Sesión no encontrada');
+  }
+
+  // Only organizer or group admin can remove resources
+  const { data: member } = await supabaseAdmin
+    .from('group_members')
+    .select('role')
+    .eq('group_id', session.group_id)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single();
+
+  if (session.organizer_id !== userId && member?.role !== 'admin') {
+    throw createForbiddenError('Solo el organizador o administrador puede quitar recursos');
+  }
+
+  // Unlink resource from session (set session_id to null)
+  const { error: deleteError } = await supabaseAdmin
+    .from('files')
+    .update({ session_id: null })
+    .eq('id', fileId)
+    .eq('session_id', sessionId); // Ensure it belongs to this session
+
+  if (deleteError) {
+    throw new AppError('Error quitando recurso: ' + deleteError.message, 500);
+  }
+
+  // Emit socket event
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`session:${sessionId}`).emit('sessionResourceRemoved', {
+      sessionId,
+      fileId
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Recurso quitado de la sesión'
+  });
+}));
+
+// @route   PUT /api/sessions/:id/notes/shared
+// @desc    Update shared session notes (organizer only)
+// @access  Private
+router.put('/:id/notes/shared', [
+  body('notes').trim().notEmpty().withMessage('Las notas no pueden estar vacías')
+], asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw createValidationError('Datos inválidos', errors.array());
+  }
+
+  const sessionId = req.params.id;
+  const userId = req.user.id;
+  const { notes } = req.body;
+
+  // Verify session exists and user is organizer
+  const { data: session, error: sessionError } = await supabaseAdmin
+    .from('sessions')
+    .select('id, organizer_id, session_notes')
+    .eq('id', sessionId)
+    .single();
+
+  if (sessionError || !session) {
+    throw createNotFoundError('Sesión no encontrada');
+  }
+
+  if (session.organizer_id !== userId) {
+    throw createForbiddenError('Solo el organizador puede editar las notas compartidas');
+  }
+
+  // Get existing notes structure or create new one
+  let sessionNotes = session.session_notes || {};
+  if (typeof sessionNotes === 'string') {
+    // Migrate old format
+    sessionNotes = { shared: sessionNotes, personal_notes: [] };
+  } else if (!sessionNotes.personal_notes) {
+    sessionNotes.personal_notes = [];
+  }
+
+  // Update shared notes
+  sessionNotes.shared = notes;
+  sessionNotes.updated_by = userId;
+  sessionNotes.updated_at = new Date().toISOString();
+
+  // Save to database
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from('sessions')
+    .update({ session_notes: sessionNotes })
+    .eq('id', sessionId)
+    .select('session_notes')
+    .single();
+
+  if (updateError) {
+    throw new AppError('Error actualizando notas: ' + updateError.message, 500);
+  }
+
+  // Emit socket event
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`session:${sessionId}`).emit('sessionNotesUpdated', {
+      sessionId,
+      sharedNotes: notes,
+      updatedBy: userId
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Notas compartidas actualizadas',
+    data: { session_notes: updated.session_notes }
+  });
+}));
+
+// @route   PUT /api/sessions/:id/notes/personal
+// @desc    Update personal notes for current user
+// @access  Private
+router.put('/:id/notes/personal', [
+  body('notes').trim().notEmpty().withMessage('Las notas no pueden estar vacías')
+], asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw createValidationError('Datos inválidos', errors.array());
+  }
+
+  const sessionId = req.params.id;
+  const userId = req.user.id;
+  const { notes } = req.body;
+
+  // Verify session exists and user is a participant
+  const { data: session, error: sessionError } = await supabaseAdmin
+    .from('sessions')
+    .select('id, group_id, session_notes')
+    .eq('id', sessionId)
+    .single();
+
+  if (sessionError || !session) {
+    throw createNotFoundError('No se encontró la sesión. Es posible que haya sido eliminada o que no tengas acceso.');
+  }
+
+  // Verify user is member of the group
+  const { data: member } = await supabaseAdmin
+    .from('group_members')
+    .select('id')
+    .eq('group_id', session.group_id)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single();
+
+  if (!member) {
+    throw createForbiddenError('No tienes acceso a esta sesión');
+  }
+
+  // Get user info for the note
+  const { data: user } = await supabaseAdmin
+    .from('users')
+    .select('id, name')
+    .eq('id', userId)
+    .single();
+
+  // Get existing notes structure or create new one
+  let sessionNotes = session.session_notes || {};
+  if (typeof sessionNotes === 'string') {
+    // Migrate old format
+    sessionNotes = { shared: sessionNotes, personal_notes: [] };
+  } else if (!sessionNotes.personal_notes) {
+    sessionNotes.personal_notes = [];
+  }
+
+  // Ensure personal_notes is an array
+  if (!Array.isArray(sessionNotes.personal_notes)) {
+    sessionNotes.personal_notes = [];
+  }
+
+  // Find or create personal note for this user
+  const existingNoteIndex = sessionNotes.personal_notes.findIndex(
+    n => n.user_id === userId
+  );
+
+  const personalNote = {
+    user_id: userId,
+    user_name: user?.name || 'Usuario',
+    note: notes,
+    updated_at: new Date().toISOString()
+  };
+
+  if (existingNoteIndex >= 0) {
+    sessionNotes.personal_notes[existingNoteIndex] = personalNote;
+  } else {
+    sessionNotes.personal_notes.push(personalNote);
+  }
+
+  // Save to database
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from('sessions')
+    .update({ session_notes: sessionNotes })
+    .eq('id', sessionId)
+    .select('session_notes')
+    .single();
+
+  if (updateError) {
+    throw new AppError('Error actualizando notas personales: ' + updateError.message, 500);
+  }
+
+  // Emit socket event for real-time updates
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`session:${sessionId}`).emit('personalNoteUpdated', {
+      sessionId,
+      personalNote,
+      userId
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Notas personales actualizadas',
+    data: {
+      personal_note: personalNote,
+      session_notes: updated.session_notes
+    }
+  });
+}));
+
 module.exports = router;
+

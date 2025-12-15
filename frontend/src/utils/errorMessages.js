@@ -77,6 +77,20 @@ export const getFriendlyErrorMessage = (error = {}) => {
   );
 
   if (matchedPattern) {
+    // Si el patrón encontrado es uno de los genéricos (basados en status),
+    // pero tenemos un mensaje específico del backend, preferimos el mensaje del backend.
+    const isGenericMessage = [
+      'No pudimos conectarnos con el servidor. Revisa tu conexión a internet e inténtalo nuevamente.',
+      'Tu sesión expiró o las credenciales no son válidas. Vuelve a iniciar sesión para continuar.',
+      'No tienes permisos para realizar esta acción. Si crees que es un error, contáctanos.',
+      'No encontramos la información que buscabas. Es posible que haya sido movida o eliminada.',
+      'Estamos experimentando dificultades en nuestros servidores. Intenta de nuevo en unos minutos.'
+    ].includes(matchedPattern.message);
+
+    if (isGenericMessage && message && message.length > 10 && !message.toLowerCase().includes('request failed')) {
+      return message;
+    }
+
     return matchedPattern.message;
   }
 
